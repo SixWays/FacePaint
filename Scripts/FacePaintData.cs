@@ -40,12 +40,32 @@ namespace Sigtrap.FacePaint {
 			}
 		}
 		#if UNITY_EDITOR
+		/// <summary>
+		/// Returns a COPY of the vertex colors array
+		/// </summary>
+		/// <returns>Vertex colors.</returns>
 		public Color[] GetColors(){
+			Color[] cols = _colors;
+			Color[] result = new Color[cols.Length];
+			for (int i=0; i<result.Length; ++i){
+				result[i] = cols[i];
+			}
 			return _colors;
 		}
+		/// <summary>
+		/// Sets the vertex colours array, and applies to the mesh
+		/// </summary>
+		/// <param name="cols">Vertex colors.</param>
 		public void SetColors(Color[] cols){
 			__colors = cols;
 			Apply();
+		}
+		/// <summary>
+		/// Gets a COPY of the triangles array
+		/// </summary>
+		/// <returns>Triangle indices array.</returns>
+		public int[] GetTris(){
+			return _mf.sharedMesh.triangles;
 		}
 		/// <summary>
 		/// Initialise mesh and colors. Should only be used from FacePaint.

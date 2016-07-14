@@ -2,6 +2,8 @@
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
+using System.Reflection;
 
 namespace Sigtrap.FacePaint {
 	public class FacePaint : EditorWindow {
@@ -100,10 +102,13 @@ namespace Sigtrap.FacePaint {
 		bool _hl = true;
 
 		Color _btnCol = new Color(0.7f, 1f, 0.7f);
-
 		Vector2 _scroll = new Vector2();
 		Texture _bucketIcon;
 
+		#endregion
+
+		#region Plugins
+		List<FacePaintPluginBase> _plugins = new List<FacePaintPluginBase>();
 		#endregion
 
 		#region Subscription
@@ -115,6 +120,16 @@ namespace Sigtrap.FacePaint {
 
 			_bucketIcon = Resources.Load("paint-can-icon") as Texture;
 			titleContent = new GUIContent("FacePaint");
+
+			// Get plugins
+			System.Type pluginType = typeof(FacePaintPluginBase);
+			foreach (var a in System.AppDomain.CurrentDomain.GetAssemblies()){
+				foreach (var t in a.GetTypes()){
+					if (t.IsSubclassOf(pluginType) && t.IsPublic && !t.IsAbstract){
+						_plugins.Add((FacePaintPluginBase)System.Activator.CreateInstance(t));
+					}
+				}
+			}
 		}
 
 		void OnDisable(){
@@ -328,6 +343,7 @@ namespace Sigtrap.FacePaint {
 					EditorGUILayout.Space();
 
 					FacePaintData fpd = GetColorData(_mf);
+					Undo.RecordObject(fpd, "FacePaint GUI");
 
 					if (DrawBtn("DONE", _btnCol)) {
 						Done();
@@ -378,6 +394,17 @@ namespace Sigtrap.FacePaint {
 
 					EditorGUILayout.Space();
 					EditorGUILayout.Space();
+					foreach (var fpp in _plugins){
+						fpp.active = EditorGUILayout.Foldout(fpp.active, fpp.title);
+						if (fpp.active){
+							++EditorGUI.indentLevel;
+							fpp.DoGUI(fpd);
+							--EditorGUI.indentLevel;
+						}
+					}
+					EditorGUILayout.Space();
+					EditorGUILayout.Space();
+
 					_debug = EditorGUILayout.Toggle("View Vertex Colours", _debug);
 					if (_debug && !_wasDebug) {
 						EnableDebug();
@@ -471,7 +498,7 @@ namespace Sigtrap.FacePaint {
 					if (mc.Raycast(mRay, out hit, 100f)) {
 						// Get existing mesh data
 						FacePaintData fpd = GetColorData(_mf);
-						Undo.RecordObject(fpd, "Perform FacePaint color");
+						Undo.RecordObject(fpd, "FacePaint SceneGUI");
 						Mesh m = _mf.sharedMesh;
 						int[] tris = m.triangles;
 						Color[] cols = fpd.GetColors();
