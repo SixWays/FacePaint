@@ -7,33 +7,11 @@ namespace Sigtrap.FacePaint{
 		float _h, _s, _v, _a;
 		bool _perPoly = true;
 
-		public string title {
-			get {
-				return "Randomiser";
-			}
-		}
-		Color Randomise(Color c){
-			float h, s, v, a;
-			Color.RGBToHSV(c, out h, out s, out v);
+		#region IFacePaintPlugin
+		public string title {get {return "Randomiser";}}
+		public bool forceTriangleHover {get {return false;}}
 
-			h += Random.Range(-_h, _h);
-			if (h > 1){h -= 1;}
-			if (h < 0){h += 1;}
-
-			s += Random.Range(-_s, _s);
-			s = Mathf.Clamp01(s);
-
-			v += Random.Range(-_v, _v);
-			v = Mathf.Clamp01(v);
-
-			a = c.a + Random.Range(-_a, _a);
-			a = Mathf.Clamp01(a);
-
-			Color result = Color.HSVToRGB(h,s,v,false);
-			result.a = a;
-			return result;
-		}
-		public void DoGUI (FacePaintData data){
+		public void OnGUI (FacePaint fp, FacePaintData fpData, FacePaintGUIData data){
 			_perPoly = EditorGUILayout.Toggle("Per Face",_perPoly);
 			EditorGUILayout.LabelField("Ranges");
 			_h = EditorGUILayout.Slider("Hue", _h, 0, 1);
@@ -41,9 +19,9 @@ namespace Sigtrap.FacePaint{
 			_v = EditorGUILayout.Slider("Val", _v, 0, 1);
 			_a = EditorGUILayout.Slider("Alpha", _a, 0, 1);
 			if (GUILayout.Button("Randomise")){
-				Color[] c = data.GetColors();
+				Color[] c = fpData.GetColors();
 				if (_perPoly){
-					int[] t = data.GetTris();
+					int[] t = fpData.GetTris();
 					for (int i=0; i<(t.Length/3); ++i){
 						int j = i*3;
 						c[t[j]] = c[t[j+1]] = c[t[j+2]] = Randomise(c[t[j]]);;
@@ -53,11 +31,44 @@ namespace Sigtrap.FacePaint{
 						c[i] = Randomise(c[i]);
 					}
 				}
-				data.SetColors(c);
+				fpData.SetColors(c);
 			}
 		}
-		public void DoSceneGUI (FacePaintData data){
+
+		public void OnSceneGUI (FacePaint fp, FacePaintData fpData, FacePaintSceneGUIData data){
 			
+		}
+		#endregion
+
+		Color Randomise(Color c){
+			float h, s, v;
+			float a = c.a;
+			Color.RGBToHSV(c, out h, out s, out v);
+
+			if (_h > 0){
+				h += Random.Range(-_h, _h);
+				if (h > 1){h -= 1;}
+				if (h < 0){h += 1;}
+			}
+
+			if (_s > 0){
+				s += Random.Range(-_s, _s);
+				s = Mathf.Clamp01(s);
+			}
+
+			if (_v > 0){
+				v += Random.Range(-_v, _v);
+				v = Mathf.Clamp01(v);
+			}
+
+			if (_a > 0){
+				a += Random.Range(-_a, _a);
+				a = Mathf.Clamp01(a);
+			}
+
+			Color result = Color.HSVToRGB(h,s,v,false);
+			result.a = a;
+			return result;
 		}
 	}
 }

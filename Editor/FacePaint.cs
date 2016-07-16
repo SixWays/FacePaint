@@ -9,18 +9,95 @@ using System.Reflection;
 namespace Sigtrap.FacePaint {
 	public class FacePaint : EditorWindow {
 		#region Static
-
 		[MenuItem("Window/FacePaint")]
 		public static void Open(){
 			// Get existing open window or if none, make a new one:
 			FacePaint window = (FacePaint)EditorWindow.GetWindow(typeof(FacePaint));
 			window.Show();
 		}
+		#endregion
 
+		#region Plugin API
+		#region Color info
+		/// <summary>
+		/// Color selected in main FacePaint GUI
+		/// </summary>
+		/// <value>The color of the paint.</value>
+		public Color paintColor {get {return _c;}}
+		/// <summary>
+		/// Is painting to RED channel enabled?
+		/// </summary>
+		public bool writeR {get {return _mR;}}
+		/// <summary>
+		/// Is painting to GREEN channel enabled?
+		/// </summary>
+		public bool writeG {get {return _mG;}}
+		/// <summary>
+		/// Is painting to BLUE channel enabled?
+		/// </summary>
+		public bool writeB {get {return _mB;}}
+		/// <summary>
+		/// Is painting to ALPHA channel enabled?
+		/// </summary>
+		public bool writeA {get {return _mA;}}
+		#endregion
+
+		#region GUI helpers
+		/// <summary>
+		/// Draw a button with a background color
+		/// </summary>
+		/// <returns><c>true</c>, if button pressed, <c>false</c> otherwise.</returns>
+		/// <param name="label">Label.</param>
+		/// <param name="bCol">Button color.</param>
+		public bool DrawBtn(string label, Color bCol){
+			Color gbc =	GUI.backgroundColor;
+			GUI.backgroundColor = bCol;
+			bool result = GUILayout.Button(label);
+			GUI.backgroundColor = gbc;
+			return result;
+		}
+
+		/// <summary>
+		/// Draw a button with a background color and text color
+		/// </summary>
+		/// <returns><c>true</c>, if button pressed, <c>false</c> otherwise.</returns>
+		/// <param name="label">Label.</param>
+		/// <param name="bCol">Button color.</param>
+		/// <param name="tCol">Text color.</param>
+		public bool DrawBtn(string label, Color bCol, Color tCol){
+			Color gcc =	GUI.contentColor;
+			GUI.contentColor = tCol;
+			bool result = DrawBtn(label, bCol);
+			GUI.contentColor = gcc;
+			return result;
+		}
+		#endregion
+
+		#region Core methods
+		/// <summary>
+		/// Paint over existing color, respecting channel settings
+		/// </summary>
+		/// <param name="baseCol">Color to paint over</param>
+		/// <param name="paintCol">Paint color</param>
+		public Color Paint(Color baseCol, Color paintCol){
+			if (_mR) {
+				baseCol.r = paintCol.r;
+			}
+			if (_mG) {
+				baseCol.g = paintCol.g;
+			}
+			if (_mB) {
+				baseCol.b = paintCol.b;
+			}
+			if (_mA) {
+				baseCol.a = paintCol.a;
+			}
+			return baseCol;
+		}
+		#endregion
 		#endregion
 
 		#region Edit data
-
 		private GameObject _go;
 		private MeshFilter _mf;
 
@@ -29,20 +106,17 @@ namespace Sigtrap.FacePaint {
 				return (_go != null && _mf != null);
 			}
 		}
-
 		#endregion
 
 		#region Color settings
 		private Color _defaultColor;
 		private Color _c;
+
 		bool[] _mask = new bool[]{ true, true, true, true };
 
 		bool _mR { get { return _mask[0]; } set { _mask[0] = value; } }
-
 		bool _mG { get { return _mask[1]; } set { _mask[1] = value; } }
-
 		bool _mB { get { return _mask[2]; } set { _mask[2] = value; } }
-
 		bool _mA { get { return _mask[3]; } set { _mask[3] = value; } }
 
 		int _channels {
@@ -93,11 +167,9 @@ namespace Sigtrap.FacePaint {
 				_debugMat.SetInt("_Mask", __debugMask);
 			}
 		}
-
 		#endregion
 
 		#region UI settings
-
 		Color _hlCol = Color.green;
 		int _hlThick = 5;
 		bool _hl = true;
@@ -106,15 +178,40 @@ namespace Sigtrap.FacePaint {
 		Vector2 _scroll = new Vector2();
 		Texture _bucketIcon;
 
+		bool _showPlugins = false;
+		bool _showSettings = true;
 		#endregion
 
 		#region Plugins
 		List<IFacePaintPlugin> _plugins = new List<IFacePaintPlugin>();
 		List<bool> _pluginsActive = new List<bool>();
+		int _numPluginsActive {
+			get {
+				if (_plugins.Count == 0) return 0;
+				int result = 0;
+				for (int i=0; i<_pluginsActive.Count; ++i){
+					if (_pluginsActive[i]){
+						++result;
+					}
+				}
+				return result;
+			}
+		}
+		bool _anyPluginsActive {get {return _numPluginsActive > 0;}}
+		bool _anyPluginsHoverTris {
+			get {
+				if (!_anyPluginsActive) return false;
+				for (int i=0; i<_plugins.Count; ++i){
+					if (_plugins[i].forceTriangleHover){
+						return true;
+					}
+				}
+				return false;
+			}
+		}
 		#endregion
 
 		#region Subscription
-
 		void OnEnable(){
 			SceneView.onSceneGUIDelegate += OnSceneGUI;
 			EditorApplication.update += EditorUpdate;
@@ -136,7 +233,6 @@ namespace Sigtrap.FacePaint {
 				}
 			}
 		}
-
 		void OnDisable(){
 			SceneView.onSceneGUIDelegate -= OnSceneGUI;
 			EditorApplication.update -= EditorUpdate;
@@ -146,11 +242,9 @@ namespace Sigtrap.FacePaint {
 				DestroyImmediate(__debugMat);
 			}
 		}
-
 		#endregion
 
 		#region Editor/GUI helper methods
-
 		// Most of these are a bit more stateful than they should be, but oh well...
 
 		void EditorUpdate(){
@@ -187,56 +281,6 @@ namespace Sigtrap.FacePaint {
 			_mf = null;
 		}
 
-		/// <summary>
-		/// Draw a button with a background color
-		/// </summary>
-		/// <returns><c>true</c>, if button pressed, <c>false</c> otherwise.</returns>
-		/// <param name="label">Label.</param>
-		/// <param name="bCol">Button color.</param>
-		bool DrawBtn(string label, Color bCol){
-			Color gbc =	GUI.backgroundColor;
-			GUI.backgroundColor = bCol;
-			bool result = GUILayout.Button(label);
-			GUI.backgroundColor = gbc;
-			return result;
-		}
-
-		/// <summary>
-		/// Draw a button with a background color and text color
-		/// </summary>
-		/// <returns><c>true</c>, if button pressed, <c>false</c> otherwise.</returns>
-		/// <param name="label">Label.</param>
-		/// <param name="bCol">Button color.</param>
-		/// <param name="tCol">Text color.</param>
-		bool DrawBtn(string label, Color bCol, Color tCol){
-			Color gcc =	GUI.contentColor;
-			GUI.contentColor = tCol;
-			bool result = DrawBtn(label, bCol);
-			GUI.contentColor = gcc;
-			return result;
-		}
-
-		/// <summary>
-		/// Paint over existing color, respecting channel settings
-		/// </summary>
-		/// <param name="baseCol">Color to paint over</param>
-		/// <param name="paintCol">Paint color</param>
-		Color Paint(Color baseCol, Color paintCol){
-			if (_mR) {
-				baseCol.r = paintCol.r;
-			}
-			if (_mG) {
-				baseCol.g = paintCol.g;
-			}
-			if (_mB) {
-				baseCol.b = paintCol.b;
-			}
-			if (_mA) {
-				baseCol.a = paintCol.a;
-			}
-			return baseCol;
-		}
-
 		void EnableDebug(){
 			if (!_editing) return;
 
@@ -263,12 +307,10 @@ namespace Sigtrap.FacePaint {
 			mr.sharedMaterials = _origMats;
 			_origMats = null;
 		}
-
 		#endregion
 
 
 		#region Data
-
 		FacePaintData GetColorData(MeshFilter mf){
 			FacePaintData cd = mf.GetComponent<FacePaintData>();
 			if (cd == null) {
@@ -286,11 +328,9 @@ namespace Sigtrap.FacePaint {
 				}
 			}
 		}
-
 		#endregion
 
 		#region Main
-
 		void OnGUI(){
 			Color gc = GUI.color;
 			Color gcc = GUI.contentColor;
@@ -335,15 +375,16 @@ namespace Sigtrap.FacePaint {
 						}
 					}
 				} else if (_editing) {
+					#region Header
 					if (Selection.activeGameObject != _mf.gameObject) {
-						EditorGUILayout.LabelField("Editing: "
+						EditorGUILayout.HelpBox("Editing: "
 						+ Selection.activeGameObject.name + " > "
 						+ " > " + _mf.gameObject.name
-						+ _mf.sharedMesh.name);
+						+ _mf.sharedMesh.name, MessageType.None);
 					} else {
-						EditorGUILayout.LabelField("Editing: "
+						EditorGUILayout.HelpBox("Editing: "
 						+ Selection.activeGameObject.name + " > "
-						+ _mf.sharedMesh.name);
+						+ _mf.sharedMesh.name, MessageType.None);
 					}
 					EditorGUILayout.Space();
 
@@ -352,8 +393,10 @@ namespace Sigtrap.FacePaint {
 
 					if (DrawBtn("DONE", _btnCol)) {
 						Done();
-					} 
+					}
+					#endregion
 
+					#region Basic settings
 					EditorGUILayout.Space();
 					EditorGUILayout.Space();
 					if (_channels != 0) {
@@ -396,21 +439,38 @@ namespace Sigtrap.FacePaint {
 						_mR = _mG = _mB = _mA = true;
 					}
 					EditorGUILayout.EndHorizontal();
+					#endregion
 
-					EditorGUILayout.Space();
-					EditorGUILayout.Space();
-					for (int i=0; i<_plugins.Count; ++i){
-						IFacePaintPlugin fpp = _plugins[i];
-						_pluginsActive[i] = EditorGUILayout.Foldout(_pluginsActive[i], fpp.title);
-						if (_pluginsActive[i]){
+					#region Plugins
+					if (_plugins.Count > 0){
+						EditorGUILayout.Space();
+						EditorGUILayout.Space();
+						string pLabel = string.Format(
+							"PLUGINS [Active: {0} / {1}]",
+							_numPluginsActive.ToString(),
+							_plugins.Count
+						);
+						_showPlugins = EditorGUILayout.Foldout(_showPlugins, pLabel);
+						if (_showPlugins){
 							++EditorGUI.indentLevel;
-							fpp.DoGUI(fpd);
+							FacePaintGUIData data = new FacePaintGUIData();
+							for (int i=0; i<_plugins.Count; ++i){
+								IFacePaintPlugin fpp = _plugins[i];
+								_pluginsActive[i] = EditorGUILayout.ToggleLeft(fpp.title, _pluginsActive[i]);
+								if (_pluginsActive[i]){
+									++EditorGUI.indentLevel;
+									fpp.OnGUI(this, fpd, data);
+									--EditorGUI.indentLevel;
+								}
+							}
 							--EditorGUI.indentLevel;
 						}
+						EditorGUILayout.Space();
+						EditorGUILayout.Space();
 					}
-					EditorGUILayout.Space();
-					EditorGUILayout.Space();
+					#endregion
 
+					#region Debug shader
 					_debug = EditorGUILayout.Toggle("View Vertex Colours", _debug);
 					if (_debug && !_wasDebug) {
 						EnableDebug();
@@ -441,31 +501,39 @@ namespace Sigtrap.FacePaint {
 						EditorGUILayout.EndHorizontal();
 					}
 					_wasDebug = _debug;
-				}
-				if (_editing && (_hl || _debug)){
-					EditorGUILayout.Space();
+					#endregion
 				}
 			}
 
-			_hl = EditorGUILayout.Toggle("Highlight faces (slower)", _hl);
-			if (_hl) {
+			#region Persistent settings
+			EditorGUILayout.Space();
+			_showSettings = EditorGUILayout.Foldout(_showSettings, "SETTINGS");
+			if (_showSettings){
 				++EditorGUI.indentLevel;
-				_hlCol = EditorGUILayout.ColorField("Poly Highlight Colour", _hlCol);
-				_hlThick = (int)EditorGUILayout.Slider("Thickness", (float)_hlThick, 5, 20);
+				GUIContent dctt = new GUIContent("Default Color", "When edited the very first time, meshes are filled with this color");
+				_defaultColor = EditorGUILayout.ColorField(dctt, _defaultColor);
+
+				_hl = EditorGUILayout.Toggle("Highlight faces", _hl);
+				if (_hl) {
+					++EditorGUI.indentLevel;
+					_hlCol = EditorGUILayout.ColorField("Poly Highlight Colour", _hlCol);
+					_hlThick = (int)EditorGUILayout.Slider("Thickness", (float)_hlThick, 5, 20);
+					--EditorGUI.indentLevel;
+				}
+
+				if (_hl){
+					EditorGUILayout.HelpBox("Highlighting may be slow on large meshes", MessageType.Warning);
+				}
 				--EditorGUI.indentLevel;
 			}
-
-			if (_hl){
-				EditorGUILayout.Space();
-			}
-
-			_defaultColor = EditorGUILayout.ColorField("Default Colour", _defaultColor);
+			#endregion
 
 			GUI.color = gc;
 			GUI.contentColor = gcc;
 			EditorGUILayout.EndScrollView();
 		}
 
+		bool _mouseWasDown = false;
 		public void OnSceneGUI(SceneView sceneView){
 			if (Selection.activeGameObject == null) return;
 			CheckSelection();
@@ -491,7 +559,27 @@ namespace Sigtrap.FacePaint {
 					if (e.type == EventType.Layout){
 						HandleUtility.AddDefaultControl(GUIUtility.GetControlID(GetHashCode(), FocusType.Passive));
 					}
-					if (!_hl && !clicked) return;
+
+					#region Plugins MouseUp hook
+					if (_anyPluginsActive && _mouseWasDown && !clicked){
+						// Pass mouseUp event to plugins
+						// Get existing mesh data
+						FacePaintData f = GetColorData(_mf);
+						Undo.RecordObject(f, "FacePaint SceneGUI");
+						FacePaintSceneGUIData data = new FacePaintSceneGUIData(
+							FacePaintSceneGUIData.SceneGUIEvent.M_UP
+						);
+						for (int i=0; i<_plugins.Count; ++i){
+							if (_pluginsActive[i]){
+								_plugins[i].OnSceneGUI(this, f, data);
+							}
+						}
+					}
+					#endregion
+
+					_mouseWasDown = clicked;
+					bool hoverTris = _anyPluginsHoverTris;
+					if (!_hl && !clicked && !hoverTris) return;
 
 					// Grab meshcollider or create temporary one
 					bool newCollider = false;
@@ -500,29 +588,63 @@ namespace Sigtrap.FacePaint {
 						newCollider = true;
 						mc = mr.gameObject.AddComponent<MeshCollider>();
 					}
+
+					// Get existing mesh data
+					FacePaintData fpd = GetColorData(_mf);
+					Undo.RecordObject(fpd, "FacePaint SceneGUI");
+
 					// Use mesh collider to get exact triangle hit
 					if (mc.Raycast(mRay, out hit, 100f)) {
-						// Get existing mesh data
-						FacePaintData fpd = GetColorData(_mf);
-						Undo.RecordObject(fpd, "FacePaint SceneGUI");
 						Mesh m = _mf.sharedMesh;
 						int[] tris = m.triangles;
 						Color[] cols = fpd.GetColors();
+						int i0 = hit.triangleIndex * 3;
 
-						// If clicked on a triangle, paint
-						if (clicked) {
+						if (clicked){
+							// If clicked on a triangle, paint
 							Event.current.Use();
 							for (int i = 0; i < 3; ++i) {
-								int cInt = tris[hit.triangleIndex * 3 + i];
+								int cInt = tris[i0 + i];
 								cols[cInt] = Paint(cols[cInt], _c);
 							}
 							fpd.SetColors(cols);
-						} else {
-							// Otherwise highlight hovered triangle
+
+							#region Plugin hook
+							// Pass click/drag events to plugins
+							if (_anyPluginsActive){
+								FacePaintSceneGUIData.SceneGUIEvent sge = FacePaintSceneGUIData.SceneGUIEvent.M_DOWN;
+								if (e.type == EventType.MouseDrag){
+									sge = FacePaintSceneGUIData.SceneGUIEvent.M_DRAG;
+								}
+								FacePaintSceneGUIData data = new FacePaintSceneGUIData(
+									sge, hit.triangleIndex,
+									tris[i0], tris[i0+1], tris[i0+2]
+								);
+								for (int i=0; i<_plugins.Count; ++i){
+									if (_pluginsActive[i]){
+										_plugins[i].OnSceneGUI(this, fpd, data);
+									}
+								}
+							}
+							#endregion
+						} else if (hoverTris) {
+							// If not clicked/dragging, pass triangle hover event to plugins
+							FacePaintSceneGUIData data = new FacePaintSceneGUIData(
+								FacePaintSceneGUIData.SceneGUIEvent.HOVER_TRIS,
+								hit.triangleIndex,
+								tris[i0], tris[i0+1], tris[i0+2]
+							);
+							for (int i=0; i<_plugins.Count; ++i){
+								if (_pluginsActive[i]){
+									_plugins[i].OnSceneGUI(this, fpd, data);
+								}
+							}
+						}
+						if (_hl) {
+							// Highlight hovered triangle
 							Matrix4x4 hm = Handles.matrix;
 							Handles.matrix = _mf.transform.localToWorldMatrix;
 							Vector3[] verts = m.vertices;
-							int i0 = hit.triangleIndex * 3;
 							Color hc = Handles.color;
 							Handles.color = _hlCol;
 							Handles.DrawAAPolyLine(
@@ -532,6 +654,19 @@ namespace Sigtrap.FacePaint {
 							Handles.matrix = hm;
 							Handles.color = hc;
 						}
+					} else {
+						#region Plugin hook
+						if (_anyPluginsActive){
+							FacePaintSceneGUIData data = new FacePaintSceneGUIData(
+								FacePaintSceneGUIData.SceneGUIEvent.HOVER_MESH
+							);
+							for (int i=0; i<_plugins.Count; ++i){
+								if (_pluginsActive[i]){
+									_plugins[i].OnSceneGUI(this, fpd, data);
+								}
+							}
+						}
+						#endregion
 					}
 
 					// Destroy temporary mesh collider if required
@@ -541,7 +676,6 @@ namespace Sigtrap.FacePaint {
 				}
 			}
 		}
-
 		#endregion
 	}
 }
