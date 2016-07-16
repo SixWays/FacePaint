@@ -1,6 +1,7 @@
 ﻿using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
@@ -108,7 +109,8 @@ namespace Sigtrap.FacePaint {
 		#endregion
 
 		#region Plugins
-		List<FacePaintPluginBase> _plugins = new List<FacePaintPluginBase>();
+		List<IFacePaintPlugin> _plugins = new List<IFacePaintPlugin>();
+		List<bool> _pluginsActive = new List<bool>();
 		#endregion
 
 		#region Subscription
@@ -122,11 +124,14 @@ namespace Sigtrap.FacePaint {
 			titleContent = new GUIContent("FacePaint");
 
 			// Get plugins
-			System.Type pluginType = typeof(FacePaintPluginBase);
+			_plugins.Clear();
+			_pluginsActive.Clear();
+			System.Type iPlugin = typeof(IFacePaintPlugin);
 			foreach (var a in System.AppDomain.CurrentDomain.GetAssemblies()){
 				foreach (var t in a.GetTypes()){
-					if (t.IsSubclassOf(pluginType) && t.IsPublic && !t.IsAbstract){
-						_plugins.Add((FacePaintPluginBase)System.Activator.CreateInstance(t));
+					if (t.IsPublic && !t.IsAbstract && !t.IsInterface && t.GetInterfaces().Contains(iPlugin)){
+						_plugins.Add((IFacePaintPlugin)System.Activator.CreateInstance(t));
+						_pluginsActive.Add(false);
 					}
 				}
 			}
@@ -394,9 +399,10 @@ namespace Sigtrap.FacePaint {
 
 					EditorGUILayout.Space();
 					EditorGUILayout.Space();
-					foreach (var fpp in _plugins){
-						fpp.active = EditorGUILayout.Foldout(fpp.active, fpp.title);
-						if (fpp.active){
+					for (int i=0; i<_plugins.Count; ++i){
+						IFacePaintPlugin fpp = _plugins[i];
+						_pluginsActive[i] = EditorGUILayout.Foldout(_pluginsActive[i], fpp.title);
+						if (_pluginsActive[i]){
 							++EditorGUI.indentLevel;
 							fpp.DoGUI(fpd);
 							--EditorGUI.indentLevel;
@@ -511,7 +517,6 @@ namespace Sigtrap.FacePaint {
 								cols[cInt] = Paint(cols[cInt], _c);
 							}
 							fpd.SetColors(cols);
-
 						} else {
 							// Otherwise highlight hovered triangle
 							Matrix4x4 hm = Handles.matrix;

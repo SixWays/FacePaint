@@ -3,11 +3,11 @@ using UnityEditor;
 using System.Collections;
 
 namespace Sigtrap.FacePaint{
-	public class FacePaint_Randomiser : FacePaintPluginBase {
+	public class FacePaint_Randomiser : IFacePaintPlugin {
 		float _h, _s, _v, _a;
 		bool _perPoly = true;
 
-		public override string title {
+		public string title {
 			get {
 				return "Randomiser";
 			}
@@ -33,7 +33,7 @@ namespace Sigtrap.FacePaint{
 			result.a = a;
 			return result;
 		}
-		public override void DoGUI (FacePaintData data){
+		public void DoGUI (FacePaintData data){
 			_perPoly = EditorGUILayout.Toggle("Per Face",_perPoly);
 			EditorGUILayout.LabelField("Ranges");
 			_h = EditorGUILayout.Slider("Hue", _h, 0, 1);
@@ -56,7 +56,7 @@ namespace Sigtrap.FacePaint{
 				data.SetColors(c);
 			}
 		}
-		public override void DoSceneGUI (FacePaintData data){
+		public void DoSceneGUI (FacePaintData data){
 			
 		}
 	}
