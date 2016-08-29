@@ -42,47 +42,20 @@ namespace Sigtrap.FacePaint {
 		}
 
 		#if UNITY_EDITOR
-		private bool TriAlreadyMapped(int t){
-			if (__submeshes == null) return false;
-
-			for (int s=0; s<__submeshes.Count; ++s){
-				if (__submeshes[s].Contains(t))	return true;
-			}
-
-			return false;
-		}
-		private void MapConnectedTris(List<int> submesh, int[] tris, int tri){
-			int v0 = tris[tri*3];
-			int v1 = tris[(tri*3)+1];
-			int v2 = tris[(tri*3)+2];
-			// Loop through other tris
-			for (int j=0; j<tris.Length/3; ++j){
-				// Ignore same tri
-				if (j == tri) continue;
-				// Check if this tri has already been mapped
-				if (TriAlreadyMapped(j)) continue;
-
-				// See if tri shares any verts with current tri
-				for (int k=0; k<3; ++k){
-					int v = tris[(j*3)+k];
-					if (v == v0 || v == v1 || v == v2){
-						// Connected - add and recurse
-						submesh.Add(j);
-						MapConnectedTris(submesh, tris, j);
-						// Don't break - vert may be shared by more than 2 tris!
-					}
-				}
-			}
-		}
-		private List<List<int>> __submeshes;
+		#region Islands
+		// Stupid serialisation hack, since Unity won't serialise a List of Lists
+		[System.Serializable]
+		private class IntList : List<int> {}
+		[SerializeField][HideInInspector]
+		private List<IntList> __islands;
 		/// <summary>
-		/// List of submeshes, where a submesh is a list of triangles
+		/// List of islands, where an island is a list of triangles
 		/// (indices into triangle array - use tris[(listValue*3) + 0,1,2] to access vert)
 		/// </summary>
-		private List<List<int>> _submeshes {
+		private List<IntList> _islands {
 			get {
-				if (__submeshes == null){
-					__submeshes = new List<List<int>>();
+				if (__islands == null || __islands.Count == 0){
+					__islands = new List<IntList>();
 
 					#region Pre-process to remove doubles
 					Vector3[] verts = _mf.sharedMesh.vertices;
@@ -122,7 +95,7 @@ namespace Sigtrap.FacePaint {
 						tris[i] = vertsToRemappedVerts[tris[i]];
 					}
 
-					// Since dealing with triangles, don't need to "unmap" afterwards
+					// Since dealing with triangle indices, not verts, don't need to "unmap" afterwards
 					// Triangle array indices still map correctly to original mesh's triangle array
 					#endregion
 
@@ -131,37 +104,76 @@ namespace Sigtrap.FacePaint {
 						// Check if this tri has already been mapped
 						if (TriAlreadyMapped(i)) continue;
 
-						// An unmapped tri means a new submesh
-						List<int> sm = new List<int>{i};
-						__submeshes.Add(sm);
+						// An unmapped tri means a new island
+						IntList il = new IntList();
+						il.Add(i);
+						__islands.Add(il);
 
 						// Recursively map connected triangles
-						MapConnectedTris(sm, tris, i);
+						MapConnectedTris(il, tris, i);
 					}
 				}
 
-				return __submeshes;
+				return __islands;
 			}
 		}
-		private Dictionary<int, int> __triToSubmesh;
+		private Dictionary<int, int> __triToIsland;
 		/// <summary>
-		/// Map of triangle index of its parent submesh
+		/// Map of triangle index of its parent island
 		/// </summary>
-		private Dictionary<int, int> _triToSubmesh {
+		private Dictionary<int, int> _triToIsland {
 			get {
-				if (__triToSubmesh == null){
-					__triToSubmesh = new Dictionary<int, int>();
+				if (__triToIsland == null){
+					__triToIsland = new Dictionary<int, int>();
 
-					// Loop through submeshes
-					for (int i=0; i<_submeshes.Count; ++i){
+					// Loop through islands
+					for (int i=0; i<_islands.Count; ++i){
 						// Get all child triangles
-						List<int> sm = _submeshes[i];
+						List<int> sm = _islands[i];
 						for (int k=0; k<sm.Count; ++k){
-							__triToSubmesh.Add(sm[k], i);
+							if (__triToIsland.ContainsKey(sm[k])) continue;
+							__triToIsland.Add(sm[k], i);
 						}
 					}
 				}
-				return __triToSubmesh;
+				return __triToIsland;
+			}
+		}
+		public bool islandsMapped {
+			get {
+				return __islands != null;
+			}
+		}
+		private bool TriAlreadyMapped(int t){
+			if (__islands == null || __islands.Count == 0) return false;
+
+			for (int s=0; s<__islands.Count; ++s){
+				if (__islands[s].Contains(t))	return true;
+			}
+
+			return false;
+		}
+		private void MapConnectedTris(List<int> island, int[] tris, int tri){
+			int v0 = tris[tri*3];
+			int v1 = tris[(tri*3)+1];
+			int v2 = tris[(tri*3)+2];
+			// Loop through other tris
+			for (int j=0; j<tris.Length/3; ++j){
+				// Ignore same tri
+				if (j == tri) continue;
+				// Check if this tri has already been mapped
+				if (TriAlreadyMapped(j)) continue;
+
+				// See if tri shares any verts with current tri
+				for (int k=0; k<3; ++k){
+					int v = tris[(j*3)+k];
+					if (v == v0 || v == v1 || v == v2){
+						// Connected - add and recurse
+						island.Add(j);
+						MapConnectedTris(island, tris, j);
+						// Don't break - vert may be shared by more than 2 tris!
+					}
+				}
 			}
 		}
 
@@ -170,14 +182,15 @@ namespace Sigtrap.FacePaint {
 		/// Argument and returned values used as tris[(value*3) + 0,1,2]
 		/// </summary>
 		public List<int> GetConnectedTriangles(int triIndex){
-			int smIndex = -1;
-			if (_triToSubmesh.TryGetValue(triIndex, out smIndex)){
-				if (smIndex < _submeshes.Count){
-					return _submeshes[smIndex];
+			int ilIndex = -1;
+			if (_triToIsland.TryGetValue(triIndex, out ilIndex)){
+				if (ilIndex < _islands.Count){
+					return _islands[ilIndex];
 				}
 			}
 			return null;
 		}
+		#endregion
 
 		/// <summary>
 		/// Returns a COPY of the vertex colors array

@@ -109,7 +109,7 @@ namespace Sigtrap.FacePaint {
 		#endregion
 
 		#region Color settings
-		private bool _paintSubmesh = false;
+		private bool _paintIsland = false;
 		private Color _defaultColor;
 		private Color _c;
 
@@ -387,9 +387,13 @@ namespace Sigtrap.FacePaint {
 						+ Selection.activeGameObject.name + " > "
 						+ _mf.sharedMesh.name, MessageType.None);
 					}
+					FacePaintData fpd = GetColorData(_mf);
+					if (_paintIsland && !fpd.islandsMapped){
+						EditorGUILayout.HelpBox("WARNING! Islands have not been calculated. Using ISLAND paint mode the first time may be very slow.",
+							MessageType.Warning);
+					}
 					EditorGUILayout.Space();
 
-					FacePaintData fpd = GetColorData(_mf);
 					Undo.RecordObject(fpd, "FacePaint GUI");
 
 					if (DrawBtn("DONE", _btnCol)) {
@@ -441,7 +445,7 @@ namespace Sigtrap.FacePaint {
 					}
 					EditorGUILayout.EndHorizontal();
 
-					_paintSubmesh = EditorGUILayout.Toggle(new GUIContent("Fill Submesh", "Clicking a face will also paint all connected faces"), _paintSubmesh);
+					_paintIsland = EditorGUILayout.Toggle(new GUIContent("Fill Island", "Clicking a face will also paint all connected faces"), _paintIsland);
 					#endregion
 
 					#region Plugins
@@ -607,7 +611,7 @@ namespace Sigtrap.FacePaint {
 							// If clicked on a triangle, paint
 							Event.current.Use();
 							List<int> allTris;
-							if (_paintSubmesh){
+							if (_paintIsland){
 								allTris = fpd.GetConnectedTriangles(hit.triangleIndex);
 							} else {
 								allTris = new List<int>{hit.triangleIndex};
