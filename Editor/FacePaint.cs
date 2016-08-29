@@ -109,6 +109,7 @@ namespace Sigtrap.FacePaint {
 		#endregion
 
 		#region Color settings
+		private bool _paintSubmesh = false;
 		private Color _defaultColor;
 		private Color _c;
 
@@ -439,6 +440,8 @@ namespace Sigtrap.FacePaint {
 						_mR = _mG = _mB = _mA = true;
 					}
 					EditorGUILayout.EndHorizontal();
+
+					_paintSubmesh = EditorGUILayout.Toggle(new GUIContent("Fill Submesh", "Clicking a face will also paint all connected faces"), _paintSubmesh);
 					#endregion
 
 					#region Plugins
@@ -603,9 +606,17 @@ namespace Sigtrap.FacePaint {
 						if (clicked){
 							// If clicked on a triangle, paint
 							Event.current.Use();
-							for (int i = 0; i < 3; ++i) {
-								int cInt = tris[i0 + i];
-								cols[cInt] = Paint(cols[cInt], _c);
+							List<int> allTris;
+							if (_paintSubmesh){
+								allTris = fpd.GetConnectedTriangles(hit.triangleIndex);
+							} else {
+								allTris = new List<int>{hit.triangleIndex};
+							}
+							for (int i = 0; i < allTris.Count; ++i){
+								for (int j = 0; j < 3; ++j) {
+									int cInt = tris[(allTris[i]*3) + j];
+									cols[cInt] = Paint(cols[cInt], _c);
+								}
 							}
 							fpd.SetColors(cols);
 
