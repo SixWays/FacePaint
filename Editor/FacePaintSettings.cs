@@ -8,5 +8,7 @@ public class FacePaintSettings : ScriptableObject {
 		Color.black, Color.white
 	};
 	[HideInInspector]
-	public Texture paletteLut;
+	public Texture2D lut;
+	[HideInInspector]
+	public bool useLut = false;
 }

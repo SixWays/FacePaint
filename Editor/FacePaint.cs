@@ -100,6 +100,10 @@ namespace Sigtrap.FacePaint {
 		public bool DrawBtn(string label, Color bCol, Color tCol, params GUILayoutOption[] options){
 			return DrawBtn(label, bCol, tCol, null, options);
 		}
+
+		public bool ToggleBtn(string label, string tooltip, bool state){
+			return GUILayout.Toggle(state, new GUIContent(label, tooltip), EditorStyles.miniButton);
+		}
 		#endregion
 
 		#region Core methods
@@ -195,6 +199,20 @@ namespace Sigtrap.FacePaint {
 			set {
 				__debugMask = value;
 				_debugMat.SetInt("_Mask", __debugMask);
+			}
+		}
+		bool _useLut {
+			get {return _settings.useLut;}
+			set {
+				_settings.useLut = value;
+				_debugMat.SetInt("_UseLUT", value ? 1 : 0);
+			}
+		}
+		Texture2D _lut {
+			get {return _settings.lut;}
+			set {
+				_settings.lut = value;
+				_debugMat.SetTexture("_LUT", value);
 			}
 		}
 		#endregion
@@ -495,6 +513,7 @@ namespace Sigtrap.FacePaint {
 					EditorGUILayout.EndHorizontal();
 					#endregion
 
+					#region CHANNELS
 					// Channels
 					EditorGUILayout.BeginVertical(EditorStyles.helpBox);
 					EditorGUILayout.BeginHorizontal();
@@ -523,21 +542,22 @@ namespace Sigtrap.FacePaint {
 					EditorGUILayout.EndHorizontal();
 					EditorGUILayout.EndVertical();
 					#endregion
+					#endregion
 
 					#region Misc
 					EditorGUILayout.BeginHorizontal();
 					// Island mode
-					_paintIsland = GUILayout.Toggle(
-						_paintIsland,
-						new GUIContent("Fill\nIslands", "Clicking a face will also paint all connected faces (slow first time!)"),
-						EditorStyles.miniButton
+					_paintIsland = ToggleBtn(
+						"Fill\nIslands",
+						"Clicking a face will also paint all connected faces (slow first time!)",
+						_paintIsland
 					);
 
 					// Assist mode
-					_debug = GUILayout.Toggle(
-						_debug,
-						new GUIContent("Assist\nMode", "Display vertex colours on model"),
-						EditorStyles.miniButton
+					_debug = ToggleBtn(
+						"Assist\nMode",
+						"Display vertex colours on model",
+						_debug
 					);
 					if (_debug && !_wasDebug) {
 						EnableDebug();
@@ -546,10 +566,10 @@ namespace Sigtrap.FacePaint {
 					}
 
 					// Face highlighting
-					_hl = GUILayout.Toggle(
-						_hl,
-						new GUIContent("Highlight\nFaces", "Highlight hovered face (slow for large meshes!)"),
-						EditorStyles.miniButton
+					_hl = ToggleBtn(
+						"Highlight\nFaces",
+						"Highlight hovered face (slow for large meshes!)",
+						_hl
 					);
 					EditorGUILayout.EndHorizontal();
 
@@ -573,6 +593,15 @@ namespace Sigtrap.FacePaint {
 						if (DrawBtn("A", (GUI.enabled ? Color.white : Color.black), Color.white, EditorStyles.miniButton)) _debugMask = 4;
 
 						GUI.enabled = true;
+
+						GUILayout.FlexibleSpace();
+
+						// LUT
+						_useLut = ToggleBtn(
+							"Use LUT",
+							"DOESN'T bake LUT colours to vertex colours.",
+							_useLut
+						);
 
 						EditorGUILayout.EndHorizontal();
 					}
@@ -625,6 +654,14 @@ namespace Sigtrap.FacePaint {
 				_hlCol = EditorGUILayout.ColorField("Colour", _hlCol);
 				_hlThick = (int)EditorGUILayout.Slider("Thickness", (float)_hlThick, 5, 20);
 				--EditorGUI.indentLevel;
+
+				_lut = EditorGUILayout.ObjectField(
+					new GUIContent("Assist Mode LUT","Original colour is painted to mesh"),
+					_lut,
+					typeof(Texture2D),
+					false
+				) as Texture2D;
+
 				--EditorGUI.indentLevel;
 			}
 			EditorGUILayout.EndVertical();
