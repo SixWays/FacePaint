@@ -15,6 +15,23 @@ namespace Sigtrap.FacePaint {
 			FacePaint window = (FacePaint)EditorWindow.GetWindow(typeof(FacePaint));
 			window.Show();
 		}
+
+		private const string RESOURCES_PATH = "Assets/FacePaint/Resources/";
+		private const string SETTINGS_PATH = "FacePaintSettings.asset";
+		private static FacePaintSettings __settings;
+		private static FacePaintSettings _settings {
+			get {
+				if (__settings == null){
+					__settings = Resources.Load<FacePaintSettings>(SETTINGS_PATH);
+					if (__settings == null){
+						__settings = ScriptableObject.CreateInstance<FacePaintSettings>();
+						AssetDatabase.CreateAsset(__settings, RESOURCES_PATH + SETTINGS_PATH);
+						AssetDatabase.Refresh();
+					}
+				}
+				return __settings;
+			}
+		}
 		#endregion
 
 		#region Plugin API
@@ -49,10 +66,15 @@ namespace Sigtrap.FacePaint {
 		/// <returns><c>true</c>, if button pressed, <c>false</c> otherwise.</returns>
 		/// <param name="label">Label.</param>
 		/// <param name="bCol">Button color.</param>
-		public bool DrawBtn(string label, Color bCol){
+		public bool DrawBtn(string label, Color bCol, GUIStyle style, params GUILayoutOption[] options){
 			Color gbc =	GUI.backgroundColor;
 			GUI.backgroundColor = bCol;
-			bool result = GUILayout.Button(label);
+			bool result = false;
+			if (style != null){
+				result = GUILayout.Button(label, style, options);
+			} else {
+				result = GUILayout.Button(label, options);
+			}
 			GUI.backgroundColor = gbc;
 			return result;
 		}
@@ -64,12 +86,19 @@ namespace Sigtrap.FacePaint {
 		/// <param name="label">Label.</param>
 		/// <param name="bCol">Button color.</param>
 		/// <param name="tCol">Text color.</param>
-		public bool DrawBtn(string label, Color bCol, Color tCol){
+		public bool DrawBtn(string label, Color bCol, Color tCol, GUIStyle style, params GUILayoutOption[] options){
 			Color gcc =	GUI.contentColor;
 			GUI.contentColor = tCol;
-			bool result = DrawBtn(label, bCol);
+			bool result = DrawBtn(label, bCol, style, options);
 			GUI.contentColor = gcc;
 			return result;
+		}
+
+		public bool DrawBtn(string label, Color bCol, params GUILayoutOption[] options){
+			return DrawBtn(label, bCol, null, options);
+		}
+		public bool DrawBtn(string label, Color bCol, Color tCol, params GUILayoutOption[] options){
+			return DrawBtn(label, bCol, tCol, null, options);
 		}
 		#endregion
 
@@ -175,7 +204,8 @@ namespace Sigtrap.FacePaint {
 		int _hlThick = 5;
 		bool _hl = true;
 
-		Color _btnCol = new Color(0.7f, 1f, 0.7f);
+		Color _greenBtn = new Color(0.7f, 1f, 0.7f);
+		Color _redBtn = new Color(1f, 0.7f, 0.7f);
 		Vector2 _scroll = new Vector2();
 		Texture _bucketIcon;
 
@@ -340,12 +370,8 @@ namespace Sigtrap.FacePaint {
 
 			if (Selection.activeGameObject == null) {
 				EditorGUILayout.HelpBox("No Object Selected",MessageType.Info);
-				EditorGUILayout.Space();
 			} else {
-
 				MeshFilter tmf = Selection.activeGameObject.GetComponentInChildren<MeshFilter>();
-
-				EditorGUILayout.Space();
 				if (!_editing) {
 					if (!tmf) {
 						GUI.contentColor = Color.red;
@@ -369,12 +395,13 @@ namespace Sigtrap.FacePaint {
 							}
 							bl += m.sharedMesh.name;
 								
-							if (DrawBtn(bl, _btnCol)) {
+							if (DrawBtn(bl, _greenBtn)) {
 								_go = Selection.activeGameObject = m.gameObject;
 								_mf = m;
 							}
 						}
 					}
+					EditorGUILayout.Space();
 				} else if (_editing) {
 					#region Header
 					if (Selection.activeGameObject != _mf.gameObject) {
@@ -392,36 +419,84 @@ namespace Sigtrap.FacePaint {
 						EditorGUILayout.HelpBox("WARNING! Islands have not been calculated. Using ISLAND paint mode the first time may be very slow.",
 							MessageType.Warning);
 					}
-					EditorGUILayout.Space();
 
 					Undo.RecordObject(fpd, "FacePaint GUI");
-
-					if (DrawBtn("DONE", _btnCol)) {
-						Done();
-					}
 					#endregion
 
 					#region Basic settings
 					EditorGUILayout.Space();
-					EditorGUILayout.Space();
+					#region COLOR
+					EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+					// Color, fill
 					if (_channels != 0) {
 						EditorGUILayout.BeginHorizontal();
-
+						EditorGUILayout.BeginVertical();
+						GUILayout.Space(5);
 						if (_channels == 1) {
-							_activeChannel = EditorGUILayout.Slider("Value ", _activeChannel, 0f, 1f);
+							_activeChannel = EditorGUILayout.Slider(_activeChannel, 0f, 1f);
 						} else {
-							_c = EditorGUILayout.ColorField("Colour", _c);
+							_c = EditorGUILayout.ColorField(_c, GUILayout.Width(60));
 						}
-
-						if (GUILayout.Button(_bucketIcon)) {
+						EditorGUILayout.EndVertical();
+						GUILayout.Space(5);
+						if (GUILayout.Button(new GUIContent(_bucketIcon, "Flood Mesh"))) {
 							Color[] cols = fpd.GetColors();
 							for (int i = 0; i < _mf.sharedMesh.vertexCount; ++i) {
 								cols[i] = Paint(cols[i], _c);
 							}
 							fpd.SetColors(cols);
 						}
+						GUILayout.FlexibleSpace();
+						EditorGUILayout.BeginVertical();
+						GUILayout.Space(4);
+						if (DrawBtn("DONE", _greenBtn)) {
+							Done();
+						}
+						EditorGUILayout.EndVertical();
 						EditorGUILayout.EndHorizontal();
+						EditorGUILayout.Space();
+					} else {
+						EditorGUILayout.HelpBox("No channels selected", MessageType.Info);
 					}
+
+					// Palette
+					EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+					GUILayout.FlexibleSpace();
+					GUILayout.Label("Palette");
+					GUILayout.FlexibleSpace();
+					if (DrawBtn("+", _greenBtn, GUILayout.Height(15), GUILayout.Width(20))){
+						_settings.palette.Add(_c);
+					}
+					EditorGUILayout.EndHorizontal();
+
+					EditorGUILayout.BeginHorizontal();
+					int cToRemove = -1;
+					for (int i=0; i<_settings.palette.Count; ++i){
+						Color c = _settings.palette[i];
+						EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+						_settings.palette[i] = EditorGUILayout.ColorField(c, GUILayout.Width(33));
+						EditorGUILayout.BeginHorizontal();
+						if (DrawBtn("", _greenBtn, GUILayout.Width(15), GUILayout.Height(15))){
+							_c = c;
+						}
+						if (DrawBtn("X", _redBtn, GUILayout.Width(17), GUILayout.Height(15))){
+							cToRemove = i;
+							break;
+						}
+						EditorGUILayout.EndHorizontal();
+						EditorGUILayout.EndVertical();
+						GUILayout.Space(5);
+					}
+					GUILayout.FlexibleSpace();
+					if (cToRemove >= 0){
+						_settings.palette.RemoveAt(cToRemove);
+					}
+					EditorGUILayout.EndHorizontal();
+					EditorGUILayout.EndHorizontal();
+					#endregion
+
+					// Channels
+					EditorGUILayout.BeginVertical(EditorStyles.helpBox);
 					EditorGUILayout.BeginHorizontal();
 					GUILayout.Label("Channels");
 					if (DrawBtn("R", _mR ? Color.red : Color.white, Color.white)) _mR = !_mR;
@@ -430,34 +505,93 @@ namespace Sigtrap.FacePaint {
 					if (DrawBtn("A", _mA ? Color.gray : Color.white, Color.white)) _mA = !_mA;
 					EditorGUILayout.EndHorizontal();
 
+					// Channel Presets
 					EditorGUILayout.BeginHorizontal();
+					GUILayout.Label("    Presets", EditorStyles.miniLabel, GUILayout.ExpandWidth(false));
 					GUILayout.Label("");
-					if (GUILayout.Button("[Colour]")) {
+					if (GUILayout.Button("[Colour]", EditorStyles.miniButton)) {
 						_mR = _mG = _mB = true;
 						_mA = false;
 					}
-					if (GUILayout.Button("[Alpha]")) {
+					if (GUILayout.Button("[Alpha]", EditorStyles.miniButton)) {
 						_mR = _mG = _mB = false;
 						_mA = true;
 					}
-					if (GUILayout.Button("[All]")) {
+					if (GUILayout.Button("[All]", EditorStyles.miniButton)) {
 						_mR = _mG = _mB = _mA = true;
 					}
 					EditorGUILayout.EndHorizontal();
+					EditorGUILayout.EndVertical();
+					#endregion
 
-					_paintIsland = EditorGUILayout.Toggle(new GUIContent("Fill Island", "Clicking a face will also paint all connected faces"), _paintIsland);
+					#region Misc
+					EditorGUILayout.BeginHorizontal();
+					// Island mode
+					_paintIsland = GUILayout.Toggle(
+						_paintIsland,
+						new GUIContent("Fill\nIslands", "Clicking a face will also paint all connected faces (slow first time!)"),
+						EditorStyles.miniButton
+					);
+
+					// Assist mode
+					_debug = GUILayout.Toggle(
+						_debug,
+						new GUIContent("Assist\nMode", "Display vertex colours on model"),
+						EditorStyles.miniButton
+					);
+					if (_debug && !_wasDebug) {
+						EnableDebug();
+					} else if (!_debug && _wasDebug) {
+						DisableDebug();
+					}
+
+					// Face highlighting
+					_hl = GUILayout.Toggle(
+						_hl,
+						new GUIContent("Highlight\nFaces", "Highlight hovered face (slow for large meshes!)"),
+						EditorStyles.miniButton
+					);
+					EditorGUILayout.EndHorizontal();
+
+					// Assist mode options
+					if (_debug) {
+						EditorGUILayout.BeginHorizontal();
+						GUILayout.Label("Assist Channels:", EditorStyles.miniLabel);
+						GUI.enabled = (_debugMask != 0);
+						if (DrawBtn("RGB", (GUI.enabled ? Color.white : Color.grey), EditorStyles.miniButton)) _debugMask = 0;
+
+						GUI.enabled = (_debugMask != 1);
+						if (DrawBtn("R", (GUI.enabled ? Color.white : Color.red), EditorStyles.miniButton)) _debugMask = 1;
+
+						GUI.enabled = (_debugMask != 2);
+						if (DrawBtn("G", (GUI.enabled ? Color.white : Color.green), EditorStyles.miniButton)) _debugMask = 2;
+
+						GUI.enabled = (_debugMask != 3);
+						if (DrawBtn("B", (GUI.enabled ? Color.white : Color.blue), EditorStyles.miniButton)) _debugMask = 3;
+
+						GUI.enabled = (_debugMask != 4);
+						if (DrawBtn("A", (GUI.enabled ? Color.white : Color.black), Color.white, EditorStyles.miniButton)) _debugMask = 4;
+
+						GUI.enabled = true;
+
+						EditorGUILayout.EndHorizontal();
+					}
+					_wasDebug = _debug;
 					#endregion
 
 					#region Plugins
 					if (_plugins.Count > 0){
 						EditorGUILayout.Space();
-						EditorGUILayout.Space();
-						string pLabel = string.Format(
-							"PLUGINS [Active: {0} / {1}]",
+						EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+						EditorGUILayout.BeginHorizontal();
+						_showPlugins = EditorGUILayout.Foldout(_showPlugins, "PLUGINS");
+						GUILayout.FlexibleSpace();
+						GUILayout.Label(string.Format(
+							"[Active: {0} / {1}]",
 							_numPluginsActive.ToString(),
 							_plugins.Count
-						);
-						_showPlugins = EditorGUILayout.Foldout(_showPlugins, pLabel);
+						));
+						EditorGUILayout.EndHorizontal();
 						if (_showPlugins){
 							++EditorGUI.indentLevel;
 							FacePaintGUIData data = new FacePaintGUIData();
@@ -472,67 +606,28 @@ namespace Sigtrap.FacePaint {
 							}
 							--EditorGUI.indentLevel;
 						}
-						EditorGUILayout.Space();
-						EditorGUILayout.Space();
+						EditorGUILayout.EndVertical();
 					}
-					#endregion
-
-					#region Debug shader
-					_debug = EditorGUILayout.Toggle("View Vertex Colours", _debug);
-					if (_debug && !_wasDebug) {
-						EnableDebug();
-					} else if (!_debug && _wasDebug) {
-						DisableDebug();
-					}
-					if (_debug) {
-						EditorGUILayout.BeginHorizontal();
-						GUILayout.Label("");
-						GUILayout.Label("Show:");
-						GUI.enabled = (_debugMask != 0);
-						if (DrawBtn("RGB", GUI.enabled ? Color.white : Color.grey)) _debugMask = 0;
-
-						GUI.enabled = (_debugMask != 1);
-						if (DrawBtn("R", GUI.enabled ? Color.white : Color.red)) _debugMask = 1;
-
-						GUI.enabled = (_debugMask != 2);
-						if (DrawBtn("G", GUI.enabled ? Color.white : Color.green)) _debugMask = 2;
-
-						GUI.enabled = (_debugMask != 3);
-						if (DrawBtn("B", GUI.enabled ? Color.white : Color.blue)) _debugMask = 3;
-
-						GUI.enabled = (_debugMask != 4);
-						if (DrawBtn("A", GUI.enabled ? Color.white : Color.black, Color.white)) _debugMask = 4;
-
-						GUI.enabled = true;
-
-						EditorGUILayout.EndHorizontal();
-					}
-					_wasDebug = _debug;
 					#endregion
 				}
 			}
 
 			#region Persistent settings
-			EditorGUILayout.Space();
+			EditorGUILayout.BeginVertical(EditorStyles.helpBox);
 			_showSettings = EditorGUILayout.Foldout(_showSettings, "SETTINGS");
 			if (_showSettings){
 				++EditorGUI.indentLevel;
 				GUIContent dctt = new GUIContent("Default Color", "When edited the very first time, meshes are filled with this color");
 				_defaultColor = EditorGUILayout.ColorField(dctt, _defaultColor);
 
-				_hl = EditorGUILayout.Toggle("Highlight faces", _hl);
-				if (_hl) {
-					++EditorGUI.indentLevel;
-					_hlCol = EditorGUILayout.ColorField("Poly Highlight Colour", _hlCol);
-					_hlThick = (int)EditorGUILayout.Slider("Thickness", (float)_hlThick, 5, 20);
-					--EditorGUI.indentLevel;
-				}
-
-				if (_hl){
-					EditorGUILayout.HelpBox("Highlighting may be slow on large meshes", MessageType.Warning);
-				}
+				EditorGUILayout.LabelField("Face Highlighting");
+				++EditorGUI.indentLevel;
+				_hlCol = EditorGUILayout.ColorField("Colour", _hlCol);
+				_hlThick = (int)EditorGUILayout.Slider("Thickness", (float)_hlThick, 5, 20);
+				--EditorGUI.indentLevel;
 				--EditorGUI.indentLevel;
 			}
+			EditorGUILayout.EndVertical();
 			#endregion
 
 			GUI.color = gc;
