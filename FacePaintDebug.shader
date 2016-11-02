@@ -1,8 +1,8 @@
 ﻿Shader "Hidden/FacePaintDebug" {
 	Properties {
-		 _Mask ("0:RGBA 1:R 2:G 3:B 4:A", Int) = 0
-		 _LUT ("LUT", 2D) = "white" {}
-		 _UseLUT ("Use LUT", Int) = 0
+		[HideInInspector] _Mask ("0:RGBA 1:R 2:G 3:B 4:A", Int) = 0
+		[HideInInspector] _LUT ("LUT", 2D) = "white" {}
+		[HideInInspector] _UseLUT ("Use LUT", Int) = 0
 	}
 	SubShader {
 		Tags { "RenderType"="Opaque" }
@@ -32,20 +32,19 @@
 			v2f vert (appdata v) {
 				v2f o;
 				o.vertex = mul(UNITY_MATRIX_MVP, v.vertex);
-				fixed4 vcol = v.color;
-				if (_UseLUT == 1){
-					vcol = tex2Dlod(_LUT, float4(vcol.xy,0,0));
-				}
 				if (_Mask == 0){
-					o.color = vcol;
+					o.color = v.color;
 				} else if (_Mask == 1){
-					o.color = vcol.r;
+					o.color = v.color.r;
 				} else if (_Mask == 2){
-					o.color = vcol.g;
+					o.color = v.color.g;
 				} else if (_Mask == 3){
-					o.color = vcol.b;
+					o.color = v.color.b;
 				} else if (_Mask == 4){
-					o.color = vcol.a;
+					o.color = v.color.a;
+				}
+				if (_UseLUT == 1){
+					o.color = tex2Dlod(_LUT, float4(o.color.r,0,0,0));
 				}
 				return o;
 			}

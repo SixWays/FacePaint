@@ -11,7 +11,13 @@ namespace Sigtrap.FacePaint {
 		void OnGUI(FacePaint fp, FacePaintData fpData, FacePaintGUIData data);
 		void OnSceneGUI(FacePaint fp, FacePaintData fpData, FacePaintSceneGUIData data);
 	}
-
+	/// <summary>
+	/// Face paint custom data. Inherit to store data in FacePaintSettings.
+	/// </summary>
+	[System.Serializable]
+	public class FacePaintCustomSettings {
+		public FacePaintCustomSettings(){}
+	}
 	public class FacePaintGUIData {
 		
 	}

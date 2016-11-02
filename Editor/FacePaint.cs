@@ -34,7 +34,7 @@ namespace Sigtrap.FacePaint {
 		}
 		#endregion
 
-		#region Plugin API
+		#region API
 		#region Color info
 		/// <summary>
 		/// Color selected in main FacePaint GUI
@@ -103,6 +103,15 @@ namespace Sigtrap.FacePaint {
 
 		public bool ToggleBtn(string label, string tooltip, bool state){
 			return GUILayout.Toggle(state, new GUIContent(label, tooltip), EditorStyles.miniButton);
+		}
+		#endregion
+
+		#region Data storage
+		public T GetCustomSettings<T>() where T:FacePaintCustomSettings, new() {
+			return _settings.GetCustomData<T>();
+		}
+		public void SaveSettings(){
+			EditorUtility.SetDirty(_settings);
 		}
 		#endregion
 
@@ -201,11 +210,17 @@ namespace Sigtrap.FacePaint {
 				_debugMat.SetInt("_Mask", __debugMask);
 			}
 		}
+		bool _lutIsReadable {
+			get {
+				return _lut != null && ((TextureImporter)(AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(_lut)))).isReadable;
+			}
+		}
 		bool _useLut {
 			get {return _settings.useLut;}
 			set {
 				_settings.useLut = value;
 				_debugMat.SetInt("_UseLUT", value ? 1 : 0);
+				SaveSettings();
 			}
 		}
 		Texture2D _lut {
@@ -213,14 +228,24 @@ namespace Sigtrap.FacePaint {
 			set {
 				_settings.lut = value;
 				_debugMat.SetTexture("_LUT", value);
+				SaveSettings();
 			}
 		}
 		#endregion
 
 		#region UI settings
-		Color _hlCol = Color.green;
-		int _hlThick = 5;
-		bool _hl = true;
+		Color _hlCol {
+			get {return _settings.hlCol;}
+			set {_settings.hlCol = value;}
+		}
+		int _hlThick {
+			get {return _settings.hlThick;}
+			set {_settings.hlThick = value;}
+		}
+		bool _hl {
+			get {return _settings.hl;}
+			set {_settings.hl = value;}
+		}
 
 		Color _greenBtn = new Color(0.7f, 1f, 0.7f);
 		Color _redBtn = new Color(1f, 0.7f, 0.7f);
@@ -386,6 +411,8 @@ namespace Sigtrap.FacePaint {
 			CheckSelection();
 			_scroll = EditorGUILayout.BeginScrollView(_scroll);
 
+			EditorGUI.BeginChangeCheck();
+
 			if (Selection.activeGameObject == null) {
 				EditorGUILayout.HelpBox("No Object Selected",MessageType.Info);
 			} else {
@@ -452,6 +479,18 @@ namespace Sigtrap.FacePaint {
 						GUILayout.Space(5);
 						if (_channels == 1) {
 							_activeChannel = EditorGUILayout.Slider(_activeChannel, 0f, 1f);
+							if (_useLut && _lut != null){
+								if (_lutIsReadable){
+									EditorGUIUtility.DrawColorSwatch(
+										EditorGUILayout.GetControlRect(GUILayout.Width(15)),
+										_lut.GetPixel(Mathf.FloorToInt(_lut.width * _activeChannel), 0)
+									);
+								} else {
+									if (_lut != null && !_lutIsReadable){
+										EditorGUILayout.HelpBox("LUT not readable in import settings", MessageType.Info);
+									}
+								}
+							}
 						} else {
 							_c = EditorGUILayout.ColorField(_c, GUILayout.Width(60));
 						}
@@ -666,6 +705,9 @@ namespace Sigtrap.FacePaint {
 			}
 			EditorGUILayout.EndVertical();
 			#endregion
+			if (EditorGUI.EndChangeCheck()){
+				SaveSettings();
+			}
 
 			GUI.color = gc;
 			GUI.contentColor = gcc;
