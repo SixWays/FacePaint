@@ -8,6 +8,8 @@ using System.Reflection;
 
 namespace Sigtrap.FacePaint {
 	public class FacePaint : EditorWindow {
+		private const string DEFAULT_ASSIST_SHADER = "Hidden/FacePaintDebug";
+
 		#region Static
 		[MenuItem("Window/FacePaint")]
 		public static void Open(){
@@ -35,12 +37,15 @@ namespace Sigtrap.FacePaint {
 		#endregion
 
 		#region API
-		#region Color info
+		#region Settings
 		/// <summary>
 		/// Color selected in main FacePaint GUI
 		/// </summary>
 		/// <value>The color of the paint.</value>
-		public Color paintColor {get {return _c;}}
+		public Color paintColor {
+			get {return _c;}
+			set {_c = value;}
+		}
 		/// <summary>
 		/// Is painting to RED channel enabled?
 		/// </summary>
@@ -57,6 +62,38 @@ namespace Sigtrap.FacePaint {
 		/// Is painting to ALPHA channel enabled?
 		/// </summary>
 		public bool writeA {get {return _mA;}}
+
+		/// <summary>
+		/// Set which channels paint should write to.
+		/// </summary>
+		public void SetChannels(bool r, bool g, bool b, bool a){
+			_mR = r;
+			_mG = g;
+			_mB = b;
+			_mA = a;
+		}
+
+		/// <summary>
+		/// Replace assist mode shader. Pass null to reset to default.
+		/// Replacement shaders MUST have at least same properties as default.
+		/// <returns>Material used by assist mode.</returns>
+		/// </summary>
+		public Material OverrideAssistShader(Shader s=null){
+			if (s == null){
+				return SetAssistShader(Shader.Find(DEFAULT_ASSIST_SHADER));
+			} else {
+				return SetAssistShader(s);
+			}
+		}
+		private Material SetAssistShader(Shader s){
+			if (__debugMat != null){
+				if (__debugMat.shader == s) return __debugMat;
+				DestroyImmediate(__debugMat);
+			}
+			__debugMat = new Material(s);
+			_updateDebugMat = true;
+			return __debugMat;
+		}
 		#endregion
 
 		#region GUI helpers
@@ -110,9 +147,9 @@ namespace Sigtrap.FacePaint {
 		public void DrawPluginTitle(){
 			if (_currentPlugin == null) return;
 			if (_currentPluginTitleStyle != null){
-				EditorGUILayout.LabelField(_currentPlugin.title, _currentPluginTitleStyle);
+				GUILayout.Label(_currentPlugin.title, _currentPluginTitleStyle);
 			} else {
-				EditorGUILayout.LabelField(_currentPlugin.title);
+				GUILayout.Label(_currentPlugin.title);
 			}
 		}
 		#endregion
@@ -123,6 +160,9 @@ namespace Sigtrap.FacePaint {
 			return _settings.GetCustomData<T>();
 		}
 		public void SaveSettings(){
+			for (int i=0; i<_plugins.Count; ++i){
+				_settings.SetPluginActive(_plugins[i].GetType(), _pluginsActive[i]);
+			}
 			EditorUtility.SetDirty(_settings);
 		}
 		#endregion
@@ -168,7 +208,6 @@ namespace Sigtrap.FacePaint {
 		private Color _c;
 
 		bool[] _mask = new bool[]{ true, true, true, true };
-
 		bool _mR { get { return _mask[0]; } set { _mask[0] = value; } }
 		bool _mG { get { return _mask[1]; } set { _mask[1] = value; } }
 		bool _mB { get { return _mask[2]; } set { _mask[2] = value; } }
@@ -184,7 +223,10 @@ namespace Sigtrap.FacePaint {
 			}
 		}
 
-		float _activeChannel {
+		/// <summary>
+		/// In single channel mode, gets/sets value of paint colour in that channel
+		/// </summary>
+		public float activeChannel {
 			get {
 				if (_channels == 1) {
 					if (_mR) return _c.r;
@@ -195,10 +237,12 @@ namespace Sigtrap.FacePaint {
 				return -1;
 			}
 			set {
-				if (_mR) _c.r = value;
-				if (_mG) _c.g = value;
-				if (_mB) _c.b = value;
-				if (_mA) _c.a = value;
+				if (_channels == 1) {
+					if (_mR) _c.r = value;
+					if (_mG) _c.g = value;
+					if (_mB) _c.b = value;
+					if (_mA) _c.a = value;
+				}
 			}
 		}
 
@@ -208,11 +252,12 @@ namespace Sigtrap.FacePaint {
 		Material _debugMat {
 			get {
 				if (__debugMat == null){
-					__debugMat = new Material(Shader.Find("Hidden/FacePaintDebug"));
+					OverrideAssistShader();
 				}
 				return __debugMat;
 			}
 		}
+		bool _updateDebugMat = false;
 		Material[] _origMats = null;
 		int __debugMask = 0;
 		int _debugMask {
@@ -220,27 +265,6 @@ namespace Sigtrap.FacePaint {
 			set {
 				__debugMask = value;
 				_debugMat.SetInt("_Mask", __debugMask);
-			}
-		}
-		bool _lutIsReadable {
-			get {
-				return _lut != null && ((TextureImporter)(AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(_lut)))).isReadable;
-			}
-		}
-		bool _useLut {
-			get {return _settings.useLut;}
-			set {
-				_settings.useLut = value;
-				_debugMat.SetInt("_UseLUT", value ? 1 : 0);
-				SaveSettings();
-			}
-		}
-		Texture2D _lut {
-			get {return _settings.lut;}
-			set {
-				_settings.lut = value;
-				_debugMat.SetTexture("_LUT", value);
-				SaveSettings();
 			}
 		}
 		#endregion
@@ -314,7 +338,7 @@ namespace Sigtrap.FacePaint {
 				foreach (var t in a.GetTypes()){
 					if (t.IsPublic && !t.IsAbstract && !t.IsInterface && t.GetInterfaces().Contains(iPlugin)){
 						_plugins.Add((IFacePaintPlugin)System.Activator.CreateInstance(t));
-						_pluginsActive.Add(false);
+						_pluginsActive.Add(_settings.PluginIsActive(t));
 					}
 				}
 			}
@@ -394,7 +418,6 @@ namespace Sigtrap.FacePaint {
 			_origMats = null;
 		}
 		#endregion
-
 
 		#region Data
 		FacePaintData GetColorData(MeshFilter mf){
@@ -490,19 +513,26 @@ namespace Sigtrap.FacePaint {
 						EditorGUILayout.BeginVertical();
 						GUILayout.Space(5);
 						if (_channels == 1) {
-							_activeChannel = EditorGUILayout.Slider(_activeChannel, 0f, 1f);
-							if (_useLut && _lut != null){
-								if (_lutIsReadable){
-									EditorGUIUtility.DrawColorSwatch(
-										EditorGUILayout.GetControlRect(GUILayout.Width(15)),
-										_lut.GetPixel(Mathf.FloorToInt(_lut.width * _activeChannel), 0)
-									);
-								} else {
-									if (_lut != null && !_lutIsReadable){
-										EditorGUILayout.HelpBox("LUT not readable in import settings", MessageType.Info);
-									}
-								}
+							EditorGUILayout.BeginHorizontal();
+							activeChannel = EditorGUILayout.Slider(activeChannel, 0f, 1f);
+							Color swatch = Color.white;
+							if (_mR){
+								swatch = Color.red;
+							} else if (_mG){
+								swatch = Color.green;
+							} else if (_mB){
+								swatch = Color.blue;
 							}
+							swatch = Color.Lerp(Color.black, swatch, activeChannel);
+							EditorGUI.DrawRect(
+								EditorGUILayout.GetControlRect(GUILayout.Width(30)),
+								swatch
+							);
+							EditorGUIUtility.DrawColorSwatch(
+								EditorGUILayout.GetControlRect(GUILayout.Width(30)),
+								paintColor
+							);
+							EditorGUILayout.EndHorizontal();
 						} else {
 							_c = EditorGUILayout.ColorField(_c, GUILayout.Width(60));
 						}
@@ -574,12 +604,13 @@ namespace Sigtrap.FacePaint {
 					EditorGUILayout.EndHorizontal();
 
 					// Draw Plugins
+					var palette = _settings.palette.AsReadOnly();
 					for (int i=0; i<_plugins.Count; ++i){
 						_currentPlugin = _plugins[i];
 						_currentPluginTitleStyle = null;
 						if (_pluginsActive[i]){
 							EditorGUILayout.BeginHorizontal();
-							_currentPlugin.OnPaletteToolbar(this, fpd);
+							_currentPlugin.OnPaletteToolbar(this, fpd, palette);
 							EditorGUILayout.EndHorizontal();
 						}
 					}
@@ -646,8 +677,13 @@ namespace Sigtrap.FacePaint {
 						"Display vertex colours on model",
 						_debug
 					);
-					if (_debug && !_wasDebug) {
-						EnableDebug();
+					if (_debug){
+						if (!_wasDebug){
+							EnableDebug();
+						} else if (_updateDebugMat){
+							DisableDebug();
+							EnableDebug();
+						}
 					} else if (!_debug && _wasDebug) {
 						DisableDebug();
 					}
@@ -692,15 +728,6 @@ namespace Sigtrap.FacePaint {
 
 						GUI.enabled = true;
 
-						GUILayout.FlexibleSpace();
-
-						// LUT
-						_useLut = ToggleBtn(
-							"Use LUT",
-							"DOESN'T bake LUT colours to vertex colours.",
-							_useLut
-						);
-
 						EditorGUILayout.EndHorizontal();
 					}
 					_wasDebug = _debug;
@@ -723,7 +750,7 @@ namespace Sigtrap.FacePaint {
 							++EditorGUI.indentLevel;
 							for (int i=0; i<_plugins.Count; ++i){
 								IFacePaintPlugin fpp = _plugins[i];
-								_pluginsActive[i] = EditorGUILayout.ToggleLeft(fpp.title, _pluginsActive[i]);
+								_pluginsActive[i] = EditorGUILayout.ToggleLeft(new GUIContent(fpp.title, fpp.description), _pluginsActive[i]);
 								if (_pluginsActive[i]){
 									++EditorGUI.indentLevel;
 									fpp.OnPluginPanel(this, fpd);
@@ -751,13 +778,6 @@ namespace Sigtrap.FacePaint {
 				_hlCol = EditorGUILayout.ColorField("Colour", _hlCol);
 				_hlThick = (int)EditorGUILayout.Slider("Thickness", (float)_hlThick, 5, 20);
 				--EditorGUI.indentLevel;
-
-				_lut = EditorGUILayout.ObjectField(
-					new GUIContent("Assist Mode LUT","Original colour is painted to mesh"),
-					_lut,
-					typeof(Texture2D),
-					false
-				) as Texture2D;
 
 				// Draw Plugins
 				for (int i=0; i<_plugins.Count; ++i){

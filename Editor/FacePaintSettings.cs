@@ -26,6 +26,9 @@ namespace Sigtrap.FacePaint {
 
 		private Dictionary<System.Type, FacePaintCustomSettings> _custom = new Dictionary<System.Type, FacePaintCustomSettings>();
 
+		[HideInInspector]
+		private List<System.Type> _activePlugins = new List<System.Type>();
+
 		#region ISerializationCallbackReceiver implementation
 		public void OnBeforeSerialize (){
 			if (_custom != null){
@@ -55,6 +58,20 @@ namespace Sigtrap.FacePaint {
 			T t = new T();
 			_custom.Add(type, t);
 			return t;
+		}
+		public bool PluginIsActive(System.Type t) {
+			return _activePlugins.Contains(t);
+		}
+		public void SetPluginActive(System.Type t, bool active){
+			if (active){
+				if (!_activePlugins.Contains(t)){
+					_activePlugins.Add(t);
+				}
+			} else {
+				if (_activePlugins.Contains(t)){
+					_activePlugins.Remove(t);
+				}
+			}
 		}
 	}
 }

@@ -30,7 +30,7 @@ namespace Sigtrap.FacePaint {
 		}
 		Mesh _m;
 
-		[SerializeField][HideInInspector]
+		[SerializeField]
 		Color[] __colors;
 		Color[] _colors {
 			get {

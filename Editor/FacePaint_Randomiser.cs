@@ -6,6 +6,7 @@ namespace Sigtrap.FacePaint{
 	public class FacePaint_Randomiser : FacePaintPluginBase {
 		#region IFacePaintPlugin
 		public override string title {get {return "Randomiser";}}
+		public override string description {get {return "Randomises colour of entire mesh.";}}
 
 		public override void OnPluginPanel (FacePaint fp, FacePaintData fpData){
 			_perPoly = EditorGUILayout.Toggle("Per Face",_perPoly);

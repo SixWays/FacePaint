@@ -1,15 +1,17 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System.Collections.ObjectModel;
 
 namespace Sigtrap.FacePaint {
 	public interface IFacePaintPlugin {
 		string title {get;}
+		string description {get;}
 		/// <summary>
 		/// If true, will force per-triangle mouseover check every frame (slower on large meshes)
 		/// </summary>
 		bool forceTriangleHover {get;}
 		void OnColorToolbar(FacePaint fp, FacePaintData fpData);
-		void OnPaletteToolbar(FacePaint fp, FacePaintData fpData);
+		void OnPaletteToolbar(FacePaint fp, FacePaintData fpData, ReadOnlyCollection<Color> palette);
 		void OnChannelToolbar(FacePaint fp, FacePaintData fpData);
 		void OnModesToolbar(FacePaint fp, FacePaintData fpData);
 		void OnPluginPanel(FacePaint fp, FacePaintData fpData);
@@ -45,9 +47,10 @@ namespace Sigtrap.FacePaint {
 
 	public abstract class FacePaintPluginBase : IFacePaintPlugin {
 		public abstract string title {get;}
+		public abstract string description {get;}
 		public virtual bool forceTriangleHover {get {return false;}}
 		public virtual void OnColorToolbar (FacePaint fp, FacePaintData fpData){}
-		public virtual void OnPaletteToolbar (FacePaint fp, FacePaintData fpData){}
+		public virtual void OnPaletteToolbar (FacePaint fp, FacePaintData fpData, ReadOnlyCollection<Color> palette){}
 		public virtual void OnChannelToolbar (FacePaint fp, FacePaintData fpData){}
 		public virtual void OnModesToolbar (FacePaint fp, FacePaintData fpData){}
 		public virtual void OnPluginPanel (FacePaint fp, FacePaintData fpData){}
