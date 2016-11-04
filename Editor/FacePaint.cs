@@ -104,6 +104,18 @@ namespace Sigtrap.FacePaint {
 		public bool ToggleBtn(string label, string tooltip, bool state){
 			return GUILayout.Toggle(state, new GUIContent(label, tooltip), EditorStyles.miniButton);
 		}
+		#region Annoying stateful gui stuff because I can't work out how to draw a label to the left of something already drawn
+		private GUIStyle _currentPluginTitleStyle;
+		private IFacePaintPlugin _currentPlugin;
+		public void DrawPluginTitle(){
+			if (_currentPlugin == null) return;
+			if (_currentPluginTitleStyle != null){
+				EditorGUILayout.LabelField(_currentPlugin.title, _currentPluginTitleStyle);
+			} else {
+				EditorGUILayout.LabelField(_currentPlugin.title);
+			}
+		}
+		#endregion
 		#endregion
 
 		#region Data storage
@@ -516,6 +528,17 @@ namespace Sigtrap.FacePaint {
 						EditorGUILayout.HelpBox("No channels selected", MessageType.Info);
 					}
 
+					// Draw Plugins
+					for (int i=0; i<_plugins.Count; ++i){
+						_currentPlugin = _plugins[i];
+						_currentPluginTitleStyle = null;
+						if (_pluginsActive[i]){
+							EditorGUILayout.BeginHorizontal();
+							_currentPlugin.OnColorToolbar(this, fpd);
+							EditorGUILayout.EndHorizontal();
+						}
+					}
+
 					// Palette
 					EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
 					GUILayout.FlexibleSpace();
@@ -549,6 +572,18 @@ namespace Sigtrap.FacePaint {
 						_settings.palette.RemoveAt(cToRemove);
 					}
 					EditorGUILayout.EndHorizontal();
+
+					// Draw Plugins
+					for (int i=0; i<_plugins.Count; ++i){
+						_currentPlugin = _plugins[i];
+						_currentPluginTitleStyle = null;
+						if (_pluginsActive[i]){
+							EditorGUILayout.BeginHorizontal();
+							_currentPlugin.OnPaletteToolbar(this, fpd);
+							EditorGUILayout.EndHorizontal();
+						}
+					}
+
 					EditorGUILayout.EndHorizontal();
 					#endregion
 
@@ -564,9 +599,9 @@ namespace Sigtrap.FacePaint {
 					EditorGUILayout.EndHorizontal();
 
 					// Channel Presets
+					++EditorGUI.indentLevel;
 					EditorGUILayout.BeginHorizontal();
-					GUILayout.Label("    Presets", EditorStyles.miniLabel, GUILayout.ExpandWidth(false));
-					GUILayout.Label("");
+					GUILayout.Label("Presets", EditorStyles.miniLabel, GUILayout.ExpandWidth(false));
 					if (GUILayout.Button("[Colour]", EditorStyles.miniButton)) {
 						_mR = _mG = _mB = true;
 						_mA = false;
@@ -579,6 +614,19 @@ namespace Sigtrap.FacePaint {
 						_mR = _mG = _mB = _mA = true;
 					}
 					EditorGUILayout.EndHorizontal();
+
+					// Draw Plugins
+					for (int i=0; i<_plugins.Count; ++i){
+						_currentPlugin = _plugins[i];
+						_currentPluginTitleStyle = EditorStyles.miniLabel;
+						if (_pluginsActive[i]){
+							EditorGUILayout.BeginHorizontal();
+							_currentPlugin.OnChannelToolbar(this, fpd);
+							EditorGUILayout.EndHorizontal();
+						}
+					}
+					--EditorGUI.indentLevel;
+
 					EditorGUILayout.EndVertical();
 					#endregion
 					#endregion
@@ -611,6 +659,17 @@ namespace Sigtrap.FacePaint {
 						_hl
 					);
 					EditorGUILayout.EndHorizontal();
+
+					// Draw Plugins
+					for (int i=0; i<_plugins.Count; ++i){
+						_currentPlugin = _plugins[i];
+						_currentPluginTitleStyle = null;
+						if (_pluginsActive[i]){
+							EditorGUILayout.BeginHorizontal();
+							_currentPlugin.OnModesToolbar(this, fpd);
+							EditorGUILayout.EndHorizontal();
+						}
+					}
 
 					// Assist mode options
 					if (_debug) {
@@ -662,13 +721,12 @@ namespace Sigtrap.FacePaint {
 						EditorGUILayout.EndHorizontal();
 						if (_showPlugins){
 							++EditorGUI.indentLevel;
-							FacePaintGUIData data = new FacePaintGUIData();
 							for (int i=0; i<_plugins.Count; ++i){
 								IFacePaintPlugin fpp = _plugins[i];
 								_pluginsActive[i] = EditorGUILayout.ToggleLeft(fpp.title, _pluginsActive[i]);
 								if (_pluginsActive[i]){
 									++EditorGUI.indentLevel;
-									fpp.OnGUI(this, fpd, data);
+									fpp.OnPluginPanel(this, fpd);
 									--EditorGUI.indentLevel;
 								}
 							}
@@ -700,6 +758,15 @@ namespace Sigtrap.FacePaint {
 					typeof(Texture2D),
 					false
 				) as Texture2D;
+
+				// Draw Plugins
+				for (int i=0; i<_plugins.Count; ++i){
+					_currentPlugin = _plugins[i];
+					_currentPluginTitleStyle = null;
+					if (_pluginsActive[i]){
+						_currentPlugin.OnSettingsPanel(this);
+					}
+				}
 
 				--EditorGUI.indentLevel;
 			}

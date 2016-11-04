@@ -3,17 +3,20 @@ using UnityEditor;
 using System.Collections;
 
 namespace Sigtrap.FacePaint {
-	public class FacePaint_EvtDebug : IFacePaintPlugin {
+	public class FacePaint_EvtDebug : FacePaintPluginBase {
 		bool _collapse = true;
 		bool _wasCollapse = true;
 		FacePaintSceneGUIData _last = null;
 
 		#region IFacePaintPlugin implementation
-		public void OnGUI (FacePaint fp, FacePaintData fpData, FacePaintGUIData data){
+		public override string title {get {return "Event Debugger";}}
+		public override bool forceTriangleHover {get {return true;}}
+
+		public override void OnPluginPanel (FacePaint fp, FacePaintData fpData){
 			_collapse = EditorGUILayout.Toggle("Collapse Output", _collapse);
 		}
 
-		public void OnSceneGUI (FacePaint fp, FacePaintData fpData, FacePaintSceneGUIData data){
+		public override void OnSceneGUI (FacePaint fp, FacePaintData fpData, FacePaintSceneGUIData data){
 			if (_collapse != _wasCollapse){
 				_last = null;
 			}
@@ -55,9 +58,6 @@ namespace Sigtrap.FacePaint {
 
 			_last = data;
 		}
-
-		public string title {get {return "Event Debugger";}}
-		public bool forceTriangleHover {get {return true;}}
 		#endregion
 	}
 }

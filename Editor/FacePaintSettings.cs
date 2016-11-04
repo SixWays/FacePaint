@@ -24,7 +24,7 @@ namespace Sigtrap.FacePaint {
 		[SerializeField][HideInInspector]
 		private List<FacePaintCustomSettings> _customValues = new List<FacePaintCustomSettings>();
 
-		private Dictionary<System.Type, FacePaintCustomSettings> _custom;
+		private Dictionary<System.Type, FacePaintCustomSettings> _custom = new Dictionary<System.Type, FacePaintCustomSettings>();
 
 		#region ISerializationCallbackReceiver implementation
 		public void OnBeforeSerialize (){
@@ -39,11 +39,7 @@ namespace Sigtrap.FacePaint {
 		}
 		public void OnAfterDeserialize (){
 			int c = Mathf.Min(_customKeys.Count, _customValues.Count);
-			if (_custom == null){
-				_custom = new Dictionary<System.Type, FacePaintCustomSettings>();
-			} else {
-				_custom.Clear();
-			}
+			_custom.Clear();
 			for (int i=0; i<c; ++i){
 				_custom.Add(_customKeys[i], _customValues[i]);
 			}

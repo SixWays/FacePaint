@@ -3,15 +3,11 @@ using UnityEditor;
 using System.Collections;
 
 namespace Sigtrap.FacePaint{
-	public class FacePaint_Randomiser : IFacePaintPlugin {
-		float _h, _s, _v, _a;
-		bool _perPoly = true;
-
+	public class FacePaint_Randomiser : FacePaintPluginBase {
 		#region IFacePaintPlugin
-		public string title {get {return "Randomiser";}}
-		public bool forceTriangleHover {get {return false;}}
+		public override string title {get {return "Randomiser";}}
 
-		public void OnGUI (FacePaint fp, FacePaintData fpData, FacePaintGUIData data){
+		public override void OnPluginPanel (FacePaint fp, FacePaintData fpData){
 			_perPoly = EditorGUILayout.Toggle("Per Face",_perPoly);
 			EditorGUILayout.LabelField("Ranges");
 			_h = EditorGUILayout.Slider("Hue", _h, 0, 1);
@@ -34,11 +30,10 @@ namespace Sigtrap.FacePaint{
 				fpData.SetColors(c);
 			}
 		}
-
-		public void OnSceneGUI (FacePaint fp, FacePaintData fpData, FacePaintSceneGUIData data){
-			
-		}
 		#endregion
+
+		float _h, _s, _v, _a;
+		bool _perPoly = true;
 
 		Color Randomise(Color c){
 			float h, s, v;

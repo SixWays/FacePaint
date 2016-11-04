@@ -8,7 +8,12 @@ namespace Sigtrap.FacePaint {
 		/// If true, will force per-triangle mouseover check every frame (slower on large meshes)
 		/// </summary>
 		bool forceTriangleHover {get;}
-		void OnGUI(FacePaint fp, FacePaintData fpData, FacePaintGUIData data);
+		void OnColorToolbar(FacePaint fp, FacePaintData fpData);
+		void OnPaletteToolbar(FacePaint fp, FacePaintData fpData);
+		void OnChannelToolbar(FacePaint fp, FacePaintData fpData);
+		void OnModesToolbar(FacePaint fp, FacePaintData fpData);
+		void OnPluginPanel(FacePaint fp, FacePaintData fpData);
+		void OnSettingsPanel(FacePaint fp);
 		void OnSceneGUI(FacePaint fp, FacePaintData fpData, FacePaintSceneGUIData data);
 	}
 	/// <summary>
@@ -17,9 +22,6 @@ namespace Sigtrap.FacePaint {
 	[System.Serializable]
 	public class FacePaintCustomSettings {
 		public FacePaintCustomSettings(){}
-	}
-	public class FacePaintGUIData {
-		
 	}
 	public class FacePaintSceneGUIData {
 		public enum SceneGUIEvent {
@@ -39,5 +41,17 @@ namespace Sigtrap.FacePaint {
 			triHit = triIndex;
 			vertsHit = new int[]{vert1,vert2,vert3};
 		}
+	}
+
+	public abstract class FacePaintPluginBase : IFacePaintPlugin {
+		public abstract string title {get;}
+		public virtual bool forceTriangleHover {get {return false;}}
+		public virtual void OnColorToolbar (FacePaint fp, FacePaintData fpData){}
+		public virtual void OnPaletteToolbar (FacePaint fp, FacePaintData fpData){}
+		public virtual void OnChannelToolbar (FacePaint fp, FacePaintData fpData){}
+		public virtual void OnModesToolbar (FacePaint fp, FacePaintData fpData){}
+		public virtual void OnPluginPanel (FacePaint fp, FacePaintData fpData){}
+		public virtual void OnSettingsPanel (FacePaint fp){}
+		public virtual void OnSceneGUI (FacePaint fp, FacePaintData fpData, FacePaintSceneGUIData data){}
 	}
 }
