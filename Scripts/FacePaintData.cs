@@ -39,6 +39,10 @@ namespace Sigtrap.FacePaint {
 				}
 				return __colors;
 			}
+			set {
+				Debug.Log("SET COLOURS");
+				__colors = _m.colors = value;
+			}
 		}
 
 		#if UNITY_EDITOR
@@ -209,7 +213,7 @@ namespace Sigtrap.FacePaint {
 		/// </summary>
 		/// <param name="cols">Vertex colors.</param>
 		public void SetColors(Color[] cols){
-			__colors = cols;
+			_colors = cols;
 			Apply();
 		}
 		/// <summary>
@@ -219,55 +223,79 @@ namespace Sigtrap.FacePaint {
 		public int[] GetTris(){
 			return _mf.sharedMesh.triangles;
 		}
+		#endif
+
+		#region Lifecycle, serialisation etc
+		void Awake(){
+			Setup();
+		}
+		void OnEnable(){
+			#if UNITY_EDITOR
+			// Lightmap bake resets vertex streams or something
+			if (!Application.isPlaying){
+				Lightmapping.completed += Setup;
+			}
+			#endif
+		}
+		void OnDisable(){
+			#if UNITY_EDITOR
+			if (!Application.isPlaying){
+				Lightmapping.completed -= Setup;
+			}
+			#endif
+		}
+		void Setup(){
+			InitMesh();
+			Apply();
+		}
+		void OnDestroy(){
+			Cleanup();
+			if (_mr != null) {
+				_mr.additionalVertexStreams = null;
+			}
+		}
+		void Cleanup(){
+			if (!_m) return;
+			#if UNITY_EDITOR
+			DestroyImmediate(_m);
+			#else
+			Destroy(_m);
+			#endif
+		}
+		#endregion
+
+		#region Init
 		/// <summary>
 		/// Initialise mesh and colors. Should only be used from FacePaint.
 		/// </summary>
 		/// <param name="c">Color to flood fill.</param>
 		public void Init(Color c){
 			InitMesh();
-			__colors = _mf.sharedMesh.colors;
-			if (__colors == null || __colors.Length != _mf.sharedMesh.vertexCount){
-				__colors = new Color[_mf.sharedMesh.vertexCount];
-				for (int i=0; i<__colors.Length; ++i){
-					__colors[i] = c;
+			_colors = _mf.sharedMesh.colors;
+			if (_colors == null || _colors.Length != _mf.sharedMesh.vertexCount){
+				_colors = new Color[_mf.sharedMesh.vertexCount];
+				for (int i=0; i<_colors.Length; ++i){
+					_colors[i] = c;
 				}
 			}
 			Apply();
 		}
-		#endif
-
 		/// <summary>
 		/// Initialize mesh for additionalVertexStreams
 		/// </summary>
 		void InitMesh(){
+			Cleanup();
 			_m = new Mesh();
 			_m.vertices = _mf.sharedMesh.vertices;
 			_mr.additionalVertexStreams = _m;
 		}
-
-		void Awake(){
-			InitMesh();
-			Apply();
-		}
-		void OnDestroy(){
-			if (_m != null){
-				#if UNITY_EDITOR
-				DestroyImmediate(_m);
-				#else
-				Destroy(_m);
-				#endif
-				if (_mr != null) {
-					_mr.additionalVertexStreams = null;
-				}
-			}
-		}
-
 		public bool Apply(){
 			if (_colors != null && _colors.Length > 0) {
-				_m.colors = _colors;
+				_m.SetColors(new List<Color>(_colors));
 				return true;
 			}
 			return false;
 		}
+		#endregion
 	}
 }
