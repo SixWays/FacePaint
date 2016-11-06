@@ -46,7 +46,9 @@ namespace Sigtrap.FacePaint {
 		public virtual void OnPaletteToolbar (FacePaint fp, FacePaintData fpData, ReadOnlyCollection<Color> palette){}
 		public virtual void OnChannelToolbar (FacePaint fp, FacePaintData fpData){}
 		public virtual void OnModesToolbar (FacePaint fp, FacePaintData fpData){}
-		public virtual void OnPluginPanel (FacePaint fp, FacePaintData fpData){}
+		public virtual void OnPluginPanel (FacePaint fp, FacePaintData fpData){
+			UnityEditor.EditorGUILayout.LabelField("No tools", UnityEditor.EditorStyles.miniBoldLabel);
+		}
 		public virtual void OnSettingsPanel (FacePaint fp){
 			UnityEditor.EditorGUILayout.LabelField("No settings", UnityEditor.EditorStyles.miniBoldLabel);
 		}

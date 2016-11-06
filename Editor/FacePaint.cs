@@ -180,6 +180,7 @@ namespace Sigtrap.FacePaint {
 		public void SaveSettings(){
 			for (int i=0; i<_plugins.Count; ++i){
 				_settings.SetPluginActive(_plugins[i], _pluginsActive[i]);
+				_settings.SetPluginSettingsUnfolded(_plugins[i], _pluginSettingsUnfolded[i]);
 			}
 			foreach (var a in _customSettings){
 				EditorUtility.SetDirty(a.Value);
@@ -317,11 +318,24 @@ namespace Sigtrap.FacePaint {
 
 		bool _showPlugins = false;
 		bool _showSettings = true;
+
+		GUIStyle __pluginBox;
+		GUIStyle _pluginBox {
+			get {
+				if (__pluginBox == null){
+					__pluginBox = new GUIStyle(EditorStyles.helpBox);
+					__pluginBox.margin = new RectOffset(30,0,0,0);
+				}
+				return __pluginBox;
+			}
+		}
+
 		#endregion
 
 		#region Plugins
 		List<IFacePaintPlugin> _plugins = new List<IFacePaintPlugin>();
 		List<bool> _pluginsActive = new List<bool>();
+		List<bool> _pluginSettingsUnfolded = new List<bool>();
 		int _numPluginsActive {
 			get {
 				if (_plugins.Count == 0) return 0;
@@ -367,11 +381,13 @@ namespace Sigtrap.FacePaint {
 						IFacePaintPlugin plugin = (IFacePaintPlugin)System.Activator.CreateInstance(t);
 						_plugins.Add(plugin);
 						_pluginsActive.Add(_settings.PluginIsActive(plugin));
+						_pluginSettingsUnfolded.Add(_settings.PluginSettingsUnfolded(plugin));
 					}
 				}
 			}
 		}
 		void OnDisable(){
+			SaveSettings();
 			SceneView.onSceneGUIDelegate -= OnSceneGUI;
 			EditorApplication.update -= EditorUpdate;
 			Undo.undoRedoPerformed -= OnUndoRedo;
@@ -511,9 +527,8 @@ namespace Sigtrap.FacePaint {
 					}
 					EditorGUILayout.Space();
 				} else if (_editing) {
+					#region HEADER SECTION
 					Undo.RecordObject(_settings, "FacePaintSettings");
-					EditorGUI.BeginChangeCheck();
-					#region Header
 					if (Selection.activeGameObject != _mf.gameObject) {
 						EditorGUILayout.HelpBox("Editing: "
 						+ Selection.activeGameObject.name + " > "
@@ -529,13 +544,11 @@ namespace Sigtrap.FacePaint {
 						EditorGUILayout.HelpBox("WARNING! Islands have not been calculated. Using ISLAND paint mode the first time may be very slow.",
 							MessageType.Warning);
 					}
-
-					Undo.RecordObject(fpd, "FacePaint GUI");
+					EditorGUILayout.Space();
+					Undo.RecordObject(fpd, "FacePaint");
 					#endregion
 
-					#region Basic settings
-					EditorGUILayout.Space();
-					#region COLOR
+					#region COLOR PANEL
 					EditorGUILayout.BeginVertical(EditorStyles.helpBox);
 					// Color, fill
 					if (_channels != 0) {
@@ -648,7 +661,7 @@ namespace Sigtrap.FacePaint {
 					EditorGUILayout.EndHorizontal();
 					#endregion
 
-					#region CHANNELS
+					#region CHANNELS PANEL
 					// Channels
 					EditorGUILayout.BeginVertical(EditorStyles.helpBox);
 					EditorGUILayout.BeginHorizontal();
@@ -690,9 +703,8 @@ namespace Sigtrap.FacePaint {
 
 					EditorGUILayout.EndVertical();
 					#endregion
-					#endregion
 
-					#region Misc
+					#region MODES PANEL
 					EditorGUILayout.BeginHorizontal();
 					// Island mode
 					_paintIsland = ToggleBtn(
@@ -763,7 +775,7 @@ namespace Sigtrap.FacePaint {
 					_wasDebug = _debug;
 					#endregion
 
-					#region Plugins
+					#region PLUGINS PANEL
 					if (_plugins.Count > 0){
 						EditorGUILayout.Space();
 						EditorGUILayout.BeginVertical(EditorStyles.helpBox);
@@ -782,9 +794,9 @@ namespace Sigtrap.FacePaint {
 								IFacePaintPlugin fpp = _plugins[i];
 								_pluginsActive[i] = EditorGUILayout.ToggleLeft(new GUIContent(fpp.title, fpp.description), _pluginsActive[i]);
 								if (_pluginsActive[i]){
-									++EditorGUI.indentLevel;
+									EditorGUILayout.BeginVertical(_pluginBox);
 									fpp.OnPluginPanel(this, fpd);
-									--EditorGUI.indentLevel;
+									EditorGUILayout.EndVertical();
 								}
 							}
 							--EditorGUI.indentLevel;
@@ -795,8 +807,7 @@ namespace Sigtrap.FacePaint {
 				}
 			}
 
-			#region Persistent settings
-			EditorGUI.BeginChangeCheck();
+			#region SETTINGS PANEL
 			EditorGUILayout.BeginVertical(EditorStyles.helpBox);
 			_showSettings = EditorGUILayout.Foldout(_showSettings, "SETTINGS");
 			if (_showSettings){
@@ -811,15 +822,13 @@ namespace Sigtrap.FacePaint {
 				--EditorGUI.indentLevel;
 
 				// Draw Plugins
-				var es = new GUIStyle(EditorStyles.helpBox);
-				es.margin = new RectOffset(30,0,0,0);
 				for (int i=0; i<_plugins.Count; ++i){
 					_currentPlugin = _plugins[i];
 					_currentPluginTitleStyle = null;
-					_settings.SetPluginSettingsUnfolded(_currentPlugin, EditorGUILayout.Foldout(_settings.PluginSettingsUnfolded(_currentPlugin),_currentPlugin.title.ToUpper()));
-					if (_settings.PluginSettingsUnfolded(_currentPlugin)){
+					_pluginSettingsUnfolded[i] = EditorGUILayout.Foldout(_pluginSettingsUnfolded[i],_currentPlugin.title.ToUpper());
+					if (_pluginSettingsUnfolded[i]){
 						--EditorGUI.indentLevel;
-						EditorGUILayout.BeginVertical(es);
+						EditorGUILayout.BeginVertical(_pluginBox);
 						_currentPlugin.OnSettingsPanel(this);
 						EditorGUILayout.EndVertical();
 						++EditorGUI.indentLevel;
@@ -828,9 +837,6 @@ namespace Sigtrap.FacePaint {
 			}
 			EditorGUILayout.EndVertical();
 			#endregion
-			if (EditorGUI.EndChangeCheck()){
-				SaveSettings();
-			}
 
 			GUI.color = gc;
 			GUI.contentColor = gcc;
