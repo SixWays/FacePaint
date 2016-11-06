@@ -9,9 +9,7 @@ Editing is non-destructive; FacePaint stores its data in a FacePaintData compone
 Copy the FacePaint folder into the Assets folder of your project. Window > FacePaint will launch a dockable editor window. Select an object with a MeshRenderer and MeshFilter and press Edit in the FacePaint window.
 
 ## Aims
-FacePaint is intended to be as simple as possible. Hopefully this allows you to extend and repurpose it easily for your own use-case.
-
-If there's demand, I'd like to add a 'plugin'-type system whereby modular extensions can easily be written rather than adding bloat and complexity to the core code.
+FacePaint is intended to be as simple as possible. Hopefully this allows you to extend and repurpose it easily for your own use-case. FacePaint now features a plugin system to easily extend the tool without having to modify existing code - quick guide below. A few are included both as examples and as potentially helpful tools. In general, I'll add new features as plugins unless they should absolutely be core functionality to avoid bloat.
 
 ## Tips
 To give multiple mesh instances the same colours, simply copy and paste the FacePaintData component.
@@ -22,3 +20,24 @@ To reset vertex colours entirely, make sure you're out of edit mode and then del
 This tool is inspired by the excellent [Unity 5.0 Vertex Painter](https://github.com/slipster216/VertexPaint "GitHub Page") by Jason Booth (particularly the use of MeshRenderer.additionalVertexStreams to apply colours non-destructively).
 
 Paint bucket icon by [Yusuke Kamiyamane](http://p.yusukekamiyamane.com/)
+
+# Plugin Development Guide
+Plugins implement the _IFacePaintPlugin_ interface. All classes implementing this will be automatically found by FacePaint and added to the plugins list, using spooky reflection magic. Alternatively, just inherit from the _FacePaintPluginBase_ "template" class to get a head start.
+
+## Callbacks
+Plugins (when set active in the 'Plugins' panel of FacePaint) get callbacks at various points in OnGUI. These are after a panel has been drawn by FacePaint, allowing plugins to augment the existing panels. The _OnSceneGUI_ callback allows plugins to act when the user interacts with the model being painted.
+
+Most callbacks pass the FacePaint instance itself for access to the API, and the FacePaintData component currently being edited (this is the MonoBehaviour attached to a mesh which stores and applies vertex colours).
+
+The _OnSceneGUI_ callback passes data on what kind of mouse event has occurred, which triangle on the mesh is affected if any, and the verts which comprise that triangle. This data can be used to manually paint on the mesh, for example. Currently it's not possible to 'eat' the event and prevent the default FacePaint behaviour from happening.
+
+## API
+If in doubt, Intellisense!
+
+GUI helper functions _FacePaint.DrawBtn()_, _FacePaint.ToggleButton()_, _FacePaint.DrawPluginTitle()_ are purely for convenience. Any standard IMGUI code can be used.
+
+_FacePaint.paintColor_ and _FacePaint.writeX_/_SetChannels()_ control the paint colour and the channels paint will apply to. _FacePaint.Paint()_ calculates the resulting colour when a given colour is painted over with a new colour, respecting the channel settings. It returns this colour without applying it to anything.
+
+To apply colours, use _FacePaintData.GetColors()_, modify the resulting array, and then _FacePaintData.SetColors()_. Changes to FacePaintData made in plugins are automatically added to undo.
+
+The "Assist Mode" shader can be overridden using _FacePaint.OverrideAssistShader()_, or reset by passing null. This is used, for instance, by the FacePaint_LUT built-in plugin.

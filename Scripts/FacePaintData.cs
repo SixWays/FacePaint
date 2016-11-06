@@ -142,6 +142,9 @@ namespace Sigtrap.FacePaint {
 				return __triToIsland;
 			}
 		}
+		/// <summary>
+		/// Have islands been mapped yet? Mapping islands can be slow.
+		/// </summary>
 		public bool islandsMapped {
 			get {
 				return __islands != null;

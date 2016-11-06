@@ -19,35 +19,6 @@ namespace Sigtrap.FacePaint {
 		}
 		#endregion
 
-		#region Settings data
-		private const string ASSETS_PATH = "Assets/FacePaint/Resources/";
-		private const string RESOURCES_PATH = "Settings/";
-
-		private T LoadSettings<T>() where T:ScriptableObject {
-			string name = typeof(T).Name;
-			// Check if file exists
-			T file = Resources.Load<T>(RESOURCES_PATH + name);
-			if (file == null){
-				// In not, create file
-				file = ScriptableObject.CreateInstance<T>();
-				AssetDatabase.CreateAsset(file, ASSETS_PATH + name + ".asset");
-				AssetDatabase.SaveAssets();
-				AssetDatabase.Refresh();
-			}
-			return file;
-		}
-
-		private FacePaintSettings __settings;
-		private FacePaintSettings _settings {
-			get {
-				if (__settings == null){
-					__settings = LoadSettings<FacePaintSettings>();
-				}
-				return __settings;
-			}
-		}
-		#endregion
-
 		#region API
 		#region Settings
 		/// <summary>
@@ -58,33 +29,71 @@ namespace Sigtrap.FacePaint {
 			get {return _settings.paintColor;}
 			set {_settings.paintColor = value;}
 		}
+
+		bool[] _mask = new bool[]{ true, true, true, true };
 		/// <summary>
 		/// Is painting to RED channel enabled?
 		/// </summary>
-		public bool writeR {get {return _mR;}}
+		public bool writeR { get { return _mask[0]; } set { _mask[0] = value; } }
 		/// <summary>
 		/// Is painting to GREEN channel enabled?
 		/// </summary>
-		public bool writeG {get {return _mG;}}
+		public bool writeG { get { return _mask[1]; } set { _mask[1] = value; } }
 		/// <summary>
 		/// Is painting to BLUE channel enabled?
 		/// </summary>
-		public bool writeB {get {return _mB;}}
+		public bool writeB { get { return _mask[2]; } set { _mask[2] = value; } }
 		/// <summary>
 		/// Is painting to ALPHA channel enabled?
 		/// </summary>
-		public bool writeA {get {return _mA;}}
+		public bool writeA { get { return _mask[3]; } set { _mask[3] = value; } }
+
+		/// <summary>
+		/// Number of channels active.
+		/// </summary>
+		public int channels {
+			get {
+				int c = 0;
+				for (int i = 0; i < 4; ++i) {
+					if (_mask[i]) ++c;
+				}
+				return c;
+			}
+		}
+		/// <summary>
+		/// In single channel mode, gets/sets value of paint colour in that channel
+		/// </summary>
+		public float activeChannel {
+			get {
+				if (channels == 1) {
+					if (writeR) return paintColor.r;
+					if (writeG) return paintColor.g;
+					if (writeB) return paintColor.b;
+					if (writeA) return paintColor.a;
+				}
+				return -1;
+			}
+			set {
+				if (channels == 1) {
+					Color p = paintColor;
+					if (writeR) p.r = value;
+					if (writeG) p.g = value;
+					if (writeB) p.b = value;
+					if (writeA) p.a = value;
+					paintColor = p;
+				}
+			}
+		}
 
 		/// <summary>
 		/// Set which channels paint should write to.
 		/// </summary>
 		public void SetChannels(bool r, bool g, bool b, bool a){
-			_mR = r;
-			_mG = g;
-			_mB = b;
-			_mA = a;
+			writeR = r;
+			writeG = g;
+			writeB = b;
+			writeA = a;
 		}
-
 		/// <summary>
 		/// Replace assist mode shader. Pass null to reset to default.
 		/// Replacement shaders MUST have at least same properties as default.
@@ -110,11 +119,12 @@ namespace Sigtrap.FacePaint {
 
 		#region GUI helpers
 		/// <summary>
-		/// Draw a button with a background color
+		/// Draw a button with a background color and GUIStyle.
 		/// </summary>
 		/// <returns><c>true</c>, if button pressed, <c>false</c> otherwise.</returns>
 		/// <param name="label">Label.</param>
 		/// <param name="bCol">Button color.</param>
+		/// <param name="style">GUIStyle to apply to button.</param>
 		public bool DrawBtn(string label, Color bCol, GUIStyle style, params GUILayoutOption[] options){
 			Color gbc =	GUI.backgroundColor;
 			GUI.backgroundColor = bCol;
@@ -127,14 +137,14 @@ namespace Sigtrap.FacePaint {
 			GUI.backgroundColor = gbc;
 			return result;
 		}
-
 		/// <summary>
-		/// Draw a button with a background color and text color
+		/// Draw a button with a background color, text color and GUIStyle.
 		/// </summary>
 		/// <returns><c>true</c>, if button pressed, <c>false</c> otherwise.</returns>
 		/// <param name="label">Label.</param>
 		/// <param name="bCol">Button color.</param>
 		/// <param name="tCol">Text color.</param>
+		/// <param name="style">GUIStyle to apply to button.</param>
 		public bool DrawBtn(string label, Color bCol, Color tCol, GUIStyle style, params GUILayoutOption[] options){
 			Color gcc =	GUI.contentColor;
 			GUI.contentColor = tCol;
@@ -142,20 +152,41 @@ namespace Sigtrap.FacePaint {
 			GUI.contentColor = gcc;
 			return result;
 		}
-
+		/// <summary>
+		/// Draw a button with a background color.
+		/// </summary>
+		/// <returns><c>true</c>, if button pressed, <c>false</c> otherwise.</returns>
+		/// <param name="label">Label.</param>
+		/// <param name="bCol">Button color.</param>
 		public bool DrawBtn(string label, Color bCol, params GUILayoutOption[] options){
 			return DrawBtn(label, bCol, null, options);
 		}
+		/// <summary>
+		/// Draw a button with a background color and text color.
+		/// </summary>
+		/// <returns><c>true</c>, if button pressed, <c>false</c> otherwise.</returns>
+		/// <param name="label">Label.</param>
+		/// <param name="bCol">Button color.</param>
+		/// <param name="tCol">Text color.</param>
 		public bool DrawBtn(string label, Color bCol, Color tCol, params GUILayoutOption[] options){
 			return DrawBtn(label, bCol, tCol, null, options);
 		}
-
+		/// <summary>
+		/// Draw a toggle button.
+		/// </summary>
+		/// <returns><c>true</c>, if button pressed, <c>false</c> otherwise.</returns>
+		/// <param name="label">Label.</param>
+		/// <param name="tooltip">Tooltip.</param>
+		/// <param name="state">Current state of property.</param>
 		public bool ToggleBtn(string label, string tooltip, bool state){
 			return GUILayout.Toggle(state, new GUIContent(label, tooltip), EditorStyles.miniButton);
 		}
 		#region Annoying stateful gui stuff because I can't work out how to draw a label to the left of something already drawn
 		private GUIStyle _currentPluginTitleStyle;
 		private IFacePaintPlugin _currentPlugin;
+		/// <summary>
+		/// Draws the plugin title. Use at start of GUI callbacks to print name of plugin in preformatted way.
+		/// </summary>
 		public void DrawPluginTitle(){
 			if (_currentPlugin == null) return;
 			if (_currentPluginTitleStyle != null){
@@ -193,21 +224,23 @@ namespace Sigtrap.FacePaint {
 
 		#region Core methods
 		/// <summary>
-		/// Paint over existing color, respecting channel settings
+		/// Combine the existing color with the paint color, respecting channel settings.
+		/// Apply the returned color.
 		/// </summary>
 		/// <param name="baseCol">Color to paint over</param>
 		/// <param name="paintCol">Paint color</param>
+		/// <returns>Color to be applied to face</returns>
 		public Color Paint(Color baseCol, Color paintCol){
-			if (_mR) {
+			if (writeR) {
 				baseCol.r = paintCol.r;
 			}
-			if (_mG) {
+			if (writeG) {
 				baseCol.g = paintCol.g;
 			}
-			if (_mB) {
+			if (writeB) {
 				baseCol.b = paintCol.b;
 			}
-			if (_mA) {
+			if (writeA) {
 				baseCol.a = paintCol.a;
 			}
 			return baseCol;
@@ -215,15 +248,40 @@ namespace Sigtrap.FacePaint {
 		#endregion
 		#endregion
 
+		#region Internal Fields
+		#region Settings data
+		private const string ASSETS_PATH = "Assets/FacePaint/Resources/";
+		private const string RESOURCES_PATH = "Settings/";
+
+		private T LoadSettings<T>() where T:ScriptableObject {
+			string name = typeof(T).Name;
+			// Check if file exists
+			T file = Resources.Load<T>(RESOURCES_PATH + name);
+			if (file == null){
+				// In not, create file
+				file = ScriptableObject.CreateInstance<T>();
+				AssetDatabase.CreateAsset(file, ASSETS_PATH + name + ".asset");
+				AssetDatabase.SaveAssets();
+				AssetDatabase.Refresh();
+			}
+			return file;
+		}
+
+		private FacePaintSettings __settings;
+		private FacePaintSettings _settings {
+			get {
+				if (__settings == null){
+					__settings = LoadSettings<FacePaintSettings>();
+				}
+				return __settings;
+			}
+		}
+		#endregion
+
 		#region Edit data
 		private GameObject _go;
 		private MeshFilter _mf;
-
-		private bool _editing {
-			get {
-				return (_go != null && _mf != null);
-			}
-		}
+		private bool _editing {get {return (_go != null && _mf != null);}}
 		#endregion
 
 		#region Color settings
@@ -231,47 +289,6 @@ namespace Sigtrap.FacePaint {
 		private Color _defaultColor {
 			get {return _settings.defaultColor;}
 			set {_settings.defaultColor = value;}
-		}
-
-		bool[] _mask = new bool[]{ true, true, true, true };
-		bool _mR { get { return _mask[0]; } set { _mask[0] = value; } }
-		bool _mG { get { return _mask[1]; } set { _mask[1] = value; } }
-		bool _mB { get { return _mask[2]; } set { _mask[2] = value; } }
-		bool _mA { get { return _mask[3]; } set { _mask[3] = value; } }
-
-		int _channels {
-			get {
-				int c = 0;
-				for (int i = 0; i < 4; ++i) {
-					if (_mask[i]) ++c;
-				}
-				return c;
-			}
-		}
-
-		/// <summary>
-		/// In single channel mode, gets/sets value of paint colour in that channel
-		/// </summary>
-		public float activeChannel {
-			get {
-				if (_channels == 1) {
-					if (_mR) return paintColor.r;
-					if (_mG) return paintColor.g;
-					if (_mB) return paintColor.b;
-					if (_mA) return paintColor.a;
-				}
-				return -1;
-			}
-			set {
-				if (_channels == 1) {
-					Color p = paintColor;
-					if (_mR) p.r = value;
-					if (_mG) p.g = value;
-					if (_mB) p.b = value;
-					if (_mA) p.a = value;
-					paintColor = p;
-				}
-			}
 		}
 
 		bool _debug = false;
@@ -329,7 +346,6 @@ namespace Sigtrap.FacePaint {
 				return __pluginBox;
 			}
 		}
-
 		#endregion
 
 		#region Plugins
@@ -361,7 +377,9 @@ namespace Sigtrap.FacePaint {
 			}
 		}
 		#endregion
+		#endregion
 
+		#region Internal Methods
 		#region Subscription
 		void OnEnable(){
 			SceneView.onSceneGUIDelegate += OnSceneGUI;
@@ -400,7 +418,6 @@ namespace Sigtrap.FacePaint {
 
 		#region Editor/GUI helper methods
 		// Most of these are a bit more stateful than they should be, but oh well...
-
 		void EditorUpdate(){
 			if (Selection.activeGameObject != null) {
 				CheckSelection();
@@ -408,7 +425,6 @@ namespace Sigtrap.FacePaint {
 			// Force GUI updates even when not focused
 			Repaint();
 		}
-
 		/// <summary>
 		/// Automatically finish editing if user selects another object
 		/// </summary>
@@ -418,7 +434,6 @@ namespace Sigtrap.FacePaint {
 				Done();
 			}
 		}
-
 		/// <summary>
 		/// Finish editing and reset all temporary stuff
 		/// </summary>
@@ -436,7 +451,6 @@ namespace Sigtrap.FacePaint {
 
 			SaveSettings();
 		}
-
 		void EnableDebug(){
 			if (!_editing) return;
 
@@ -453,7 +467,6 @@ namespace Sigtrap.FacePaint {
 			// Make sure shader settings are set
 			_debugMask = _debugMask;
 		}
-
 		void DisableDebug(){
 			if (_origMats == null) return;
 
@@ -474,7 +487,6 @@ namespace Sigtrap.FacePaint {
 			}
 			return cd;
 		}
-
 		void OnUndoRedo(){
 			if (_mf) {
 				FacePaintData fpd = _mf.GetComponent<FacePaintData>();
@@ -484,8 +496,9 @@ namespace Sigtrap.FacePaint {
 			}
 		}
 		#endregion
+		#endregion
 
-		#region Main
+		#region Main GUI Methods
 		void OnGUI(){
 			Color gc = GUI.color;
 			Color gcc = GUI.contentColor;
@@ -551,19 +564,19 @@ namespace Sigtrap.FacePaint {
 					#region COLOR PANEL
 					EditorGUILayout.BeginVertical(EditorStyles.helpBox);
 					// Color, fill
-					if (_channels != 0) {
+					if (channels != 0) {
 						EditorGUILayout.BeginHorizontal();
 						EditorGUILayout.BeginVertical();
 						GUILayout.Space(5);
-						if (_channels == 1) {
+						if (channels == 1) {
 							EditorGUILayout.BeginHorizontal();
 							activeChannel = EditorGUILayout.Slider(activeChannel, 0f, 1f);
 							Color swatch = Color.white;
-							if (_mR){
+							if (writeR){
 								swatch = Color.red;
-							} else if (_mG){
+							} else if (writeG){
 								swatch = Color.green;
-							} else if (_mB){
+							} else if (writeB){
 								swatch = Color.blue;
 							}
 							swatch = Color.Lerp(Color.black, swatch, activeChannel);
@@ -666,10 +679,10 @@ namespace Sigtrap.FacePaint {
 					EditorGUILayout.BeginVertical(EditorStyles.helpBox);
 					EditorGUILayout.BeginHorizontal();
 					GUILayout.Label("Channels");
-					if (DrawBtn("R", _mR ? Color.red : Color.white, Color.white)) _mR = !_mR;
-					if (DrawBtn("G", _mG ? Color.green : Color.white, Color.white)) _mG = !_mG;
-					if (DrawBtn("B", _mB ? new Color(0.5f,0.5f,1) : Color.white, Color.white)) _mB = !_mB;
-					if (DrawBtn("A", _mA ? Color.gray : Color.white, Color.white)) _mA = !_mA;
+					if (DrawBtn("R", writeR ? Color.red : Color.white, Color.white)) writeR = !writeR;
+					if (DrawBtn("G", writeG ? Color.green : Color.white, Color.white)) writeG = !writeG;
+					if (DrawBtn("B", writeB ? new Color(0.5f,0.5f,1) : Color.white, Color.white)) writeB = !writeB;
+					if (DrawBtn("A", writeA ? Color.gray : Color.white, Color.white)) writeA = !writeA;
 					EditorGUILayout.EndHorizontal();
 
 					// Channel Presets
@@ -677,15 +690,15 @@ namespace Sigtrap.FacePaint {
 					EditorGUILayout.BeginHorizontal();
 					GUILayout.Label("Presets", EditorStyles.miniLabel, GUILayout.ExpandWidth(false));
 					if (GUILayout.Button("[Colour]", EditorStyles.miniButton)) {
-						_mR = _mG = _mB = true;
-						_mA = false;
+						writeR = writeG = writeB = true;
+						writeA = false;
 					}
 					if (GUILayout.Button("[Alpha]", EditorStyles.miniButton)) {
-						_mR = _mG = _mB = false;
-						_mA = true;
+						writeR = writeG = writeB = false;
+						writeA = true;
 					}
 					if (GUILayout.Button("[All]", EditorStyles.miniButton)) {
-						_mR = _mG = _mB = _mA = true;
+						writeR = writeG = writeB = writeA = true;
 					}
 					EditorGUILayout.EndHorizontal();
 
