@@ -333,9 +333,7 @@ namespace Sigtrap.FacePaint {
 		Color _redBtn = new Color(1f, 0.7f, 0.7f);
 		Vector2 _scroll = new Vector2();
 		Texture _bucketIcon;
-
-		bool _showPlugins = false;
-		bool _showSettings = true;
+		Texture _headerLogo;
 
 		GUIStyle __pluginBox;
 		GUIStyle _pluginBox {
@@ -345,6 +343,16 @@ namespace Sigtrap.FacePaint {
 					__pluginBox.margin = new RectOffset(30,0,0,0);
 				}
 				return __pluginBox;
+			}
+		}
+		GUIStyle __headerBox;
+		GUIStyle _headerBox {
+			get {
+				if (__headerBox == null){
+					__headerBox = new GUIStyle(EditorStyles.textArea);
+					__headerBox.margin = new RectOffset(0,0,0,0);
+				}
+				return __headerBox;
 			}
 		}
 		#endregion
@@ -388,6 +396,7 @@ namespace Sigtrap.FacePaint {
 			Undo.undoRedoPerformed += OnUndoRedo;
 
 			_bucketIcon = Resources.Load("paint-can-icon") as Texture;
+			_headerLogo = Resources.Load("header-logo") as Texture;
 			titleContent = new GUIContent("FacePaint");
 
 			// Get plugins
@@ -505,6 +514,27 @@ namespace Sigtrap.FacePaint {
 			Color gcc = GUI.contentColor;
 			CheckSelection();
 			_scroll = EditorGUILayout.BeginScrollView(_scroll);
+
+			// Logo
+			if (!_settings.hideLogo){
+				EditorGUILayout.BeginHorizontal(_headerBox);
+				int vh = 64;
+				float vw = EditorGUIUtility.currentViewWidth;
+				float tw = (float)_headerLogo.width * ((float)vh/(float)_headerLogo.height);
+				if (vw >= tw){
+					// Draw at regular scale with white sides
+					EditorGUI.DrawRect(new Rect(0, 0, vw, vh+2), new Color(0.95f,0.95f,0.95f));
+				} else {
+					// Scale logo to fit
+					vh = (int)(64f / (tw/vw));
+				}
+				EditorGUI.DrawPreviewTexture(new Rect(0,0,vw,vh), _headerLogo, null, ScaleMode.ScaleToFit);
+				// Force height
+				EditorGUILayout.BeginVertical();
+				GUILayout.Space(vh+2);
+				EditorGUILayout.EndVertical();
+				EditorGUILayout.EndHorizontal();
+			}
 
 			if (Selection.activeGameObject == null) {
 				EditorGUILayout.HelpBox("No Object Selected",MessageType.Info);
@@ -625,194 +655,212 @@ namespace Sigtrap.FacePaint {
 							EditorGUILayout.EndHorizontal();
 						}
 					}
+					EditorGUILayout.EndVertical();
+					#endregion
 
+					#region PALETTE PANEL
 					// Palette
+					EditorGUILayout.BeginVertical(EditorStyles.helpBox);
 					EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+					_settings.showPalette = EditorGUILayout.Foldout(_settings.showPalette, "Palette");
 					GUILayout.FlexibleSpace();
-					GUILayout.Label("Palette");
-					GUILayout.FlexibleSpace();
-					if (DrawBtn("+", _greenBtn, GUILayout.Height(15), GUILayout.Width(20))){
-						_settings.palette.Add(paintColor);
+					if (_settings.showPalette){
+						if (DrawBtn("+", _greenBtn, GUILayout.Height(15), GUILayout.Width(20))){
+							_settings.palette.Add(paintColor);
+						}
 					}
 					EditorGUILayout.EndHorizontal();
 
-					EditorGUILayout.BeginHorizontal();
-					int cToRemove = -1;
-					for (int i=0; i<_settings.palette.Count; ++i){
-						Color c = _settings.palette[i];
-						EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-						_settings.palette[i] = EditorGUILayout.ColorField(c, GUILayout.Width(33));
+					if (_settings.showPalette){
 						EditorGUILayout.BeginHorizontal();
-						if (DrawBtn("", _greenBtn, GUILayout.Width(15), GUILayout.Height(15))){
-							paintColor = c;
+						int cToRemove = -1;
+						for (int i=0; i<_settings.palette.Count; ++i){
+							Color c = _settings.palette[i];
+							EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+							_settings.palette[i] = EditorGUILayout.ColorField(c, GUILayout.Width(33));
+							EditorGUILayout.BeginHorizontal();
+							if (DrawBtn("", _greenBtn, GUILayout.Width(15), GUILayout.Height(15))){
+								paintColor = c;
+							}
+							if (DrawBtn("X", _redBtn, GUILayout.Width(17), GUILayout.Height(15))){
+								cToRemove = i;
+								break;
+							}
+							EditorGUILayout.EndHorizontal();
+							EditorGUILayout.EndVertical();
+							GUILayout.Space(5);
 						}
-						if (DrawBtn("X", _redBtn, GUILayout.Width(17), GUILayout.Height(15))){
-							cToRemove = i;
-							break;
+						GUILayout.FlexibleSpace();
+						if (cToRemove >= 0){
+							_settings.palette.RemoveAt(cToRemove);
 						}
 						EditorGUILayout.EndHorizontal();
-						EditorGUILayout.EndVertical();
-						GUILayout.Space(5);
-					}
-					GUILayout.FlexibleSpace();
-					if (cToRemove >= 0){
-						_settings.palette.RemoveAt(cToRemove);
-					}
-					EditorGUILayout.EndHorizontal();
 
-					// Draw Plugins
-					var palette = _settings.palette.AsReadOnly();
-					for (int i=0; i<_plugins.Count; ++i){
-						_currentPlugin = _plugins[i];
-						_currentPluginTitleStyle = null;
-						if (_pluginsActive[i]){
-							EditorGUILayout.BeginHorizontal();
-							_currentPlugin.OnPaletteToolbar(this, fpd, palette);
-							EditorGUILayout.EndHorizontal();
+						// Draw Plugins
+						var palette = _settings.palette.AsReadOnly();
+						for (int i=0; i<_plugins.Count; ++i){
+							_currentPlugin = _plugins[i];
+							_currentPluginTitleStyle = null;
+							if (_pluginsActive[i]){
+								EditorGUILayout.BeginHorizontal();
+								_currentPlugin.OnPaletteToolbar(this, fpd, palette);
+								EditorGUILayout.EndHorizontal();
+							}
 						}
 					}
-
-					EditorGUILayout.EndHorizontal();
+					EditorGUILayout.EndVertical();
 					#endregion
 
 					#region CHANNELS PANEL
 					// Channels
 					EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-					EditorGUILayout.BeginHorizontal();
-					GUILayout.Label("Channels");
-					if (DrawBtn("R", writeR ? Color.red : Color.white, Color.white)) writeR = !writeR;
-					if (DrawBtn("G", writeG ? Color.green : Color.white, Color.white)) writeG = !writeG;
-					if (DrawBtn("B", writeB ? new Color(0.5f,0.5f,1) : Color.white, Color.white)) writeB = !writeB;
-					if (DrawBtn("A", writeA ? Color.gray : Color.white, Color.white)) writeA = !writeA;
-					EditorGUILayout.EndHorizontal();
 
-					// Channel Presets
-					++EditorGUI.indentLevel;
-					EditorGUILayout.BeginHorizontal();
-					GUILayout.Label("Presets", EditorStyles.miniLabel, GUILayout.ExpandWidth(false));
-					if (GUILayout.Button("[Colour]", EditorStyles.miniButton)) {
-						writeR = writeG = writeB = true;
-						writeA = false;
-					}
-					if (GUILayout.Button("[Alpha]", EditorStyles.miniButton)) {
-						writeR = writeG = writeB = false;
-						writeA = true;
-					}
-					if (GUILayout.Button("[All]", EditorStyles.miniButton)) {
-						writeR = writeG = writeB = writeA = true;
-					}
-					EditorGUILayout.EndHorizontal();
+					EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+					_settings.showChannels = EditorGUILayout.Foldout(_settings.showChannels, "Channels");
 
-					// Draw Plugins
-					for (int i=0; i<_plugins.Count; ++i){
-						_currentPlugin = _plugins[i];
-						_currentPluginTitleStyle = EditorStyles.miniLabel;
-						if (_pluginsActive[i]){
-							EditorGUILayout.BeginHorizontal();
-							_currentPlugin.OnChannelToolbar(this, fpd);
-							EditorGUILayout.EndHorizontal();
+					EditorGUILayout.EndHorizontal();
+					if (_settings.showChannels){
+						EditorGUILayout.BeginHorizontal();
+						if (DrawBtn("R", writeR ? Color.red : Color.white, Color.white)) writeR = !writeR;
+						if (DrawBtn("G", writeG ? Color.green : Color.white, Color.white)) writeG = !writeG;
+						if (DrawBtn("B", writeB ? new Color(0.5f,0.5f,1) : Color.white, Color.white)) writeB = !writeB;
+						if (DrawBtn("A", writeA ? Color.gray : Color.white, Color.white)) writeA = !writeA;
+						EditorGUILayout.EndHorizontal();
+
+						// Channel Presets
+						++EditorGUI.indentLevel;
+						EditorGUILayout.BeginHorizontal();
+						GUILayout.Label("Presets", EditorStyles.miniLabel, GUILayout.ExpandWidth(false));
+						if (GUILayout.Button("[Colour]", EditorStyles.miniButton)) {
+							writeR = writeG = writeB = true;
+							writeA = false;
 						}
-					}
-					--EditorGUI.indentLevel;
+						if (GUILayout.Button("[Alpha]", EditorStyles.miniButton)) {
+							writeR = writeG = writeB = false;
+							writeA = true;
+						}
+						if (GUILayout.Button("[All]", EditorStyles.miniButton)) {
+							writeR = writeG = writeB = writeA = true;
+						}
+						EditorGUILayout.EndHorizontal();
 
+						// Draw Plugins
+						for (int i=0; i<_plugins.Count; ++i){
+							_currentPlugin = _plugins[i];
+							_currentPluginTitleStyle = EditorStyles.miniLabel;
+							if (_pluginsActive[i]){
+								EditorGUILayout.BeginHorizontal();
+								_currentPlugin.OnChannelToolbar(this, fpd);
+								EditorGUILayout.EndHorizontal();
+							}
+						}
+						--EditorGUI.indentLevel;
+					}
 					EditorGUILayout.EndVertical();
 					#endregion
 
 					#region MODES PANEL
-					EditorGUILayout.BeginHorizontal();
-					// Island mode
-					_paintIsland = ToggleBtn(
-						"Fill\nIslands",
-						"Clicking a face will also paint all connected faces (slow first time!)",
-						_paintIsland
-					);
-
-					// Assist mode
-					_debug = ToggleBtn(
-						"Assist\nMode",
-						"Display vertex colours on model",
-						_debug
-					);
-					if (_debug){
-						if (!_wasDebug){
-							EnableDebug();
-						} else if (_updateDebugMat){
-							DisableDebug();
-							EnableDebug();
-						}
-					} else if (!_debug && _wasDebug) {
-						DisableDebug();
-					}
-
-					// Face highlighting
-					_hl = ToggleBtn(
-						"Highlight\nFaces",
-						"Highlight hovered face (slow for large meshes!)",
-						_hl
-					);
+					EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+					EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+					_settings.showModes = EditorGUILayout.Foldout(_settings.showModes, "Modes");
 					EditorGUILayout.EndHorizontal();
 
-					// Draw Plugins
-					for (int i=0; i<_plugins.Count; ++i){
-						_currentPlugin = _plugins[i];
-						_currentPluginTitleStyle = null;
-						if (_pluginsActive[i]){
-							EditorGUILayout.BeginHorizontal();
-							_currentPlugin.OnModesToolbar(this, fpd);
-							EditorGUILayout.EndHorizontal();
-						}
-					}
-
-					// Assist mode options
-					if (_debug) {
+					if (_settings.showModes){
 						EditorGUILayout.BeginHorizontal();
-						GUILayout.Label("Assist Channels:", EditorStyles.miniLabel);
-						GUI.enabled = !_debugLink;
-						_debugLink = ToggleBtn("LINK", "Link assist mode channel(s) to paint channel(s)", _debugLink);
-						GUI.enabled = (_debugMask != 0);
-						if (DrawBtn("RGB", (GUI.enabled ? Color.white : Color.grey), EditorStyles.miniButton)) _debugMask = 0;
+						// Island mode
+						_paintIsland = ToggleBtn(
+							"Fill\nIslands",
+							"Clicking a face will also paint all connected faces (slow first time!)",
+							_paintIsland
+						);
 
-						GUI.enabled = (_debugMask != 1);
-						if (DrawBtn("R", (GUI.enabled ? Color.white : Color.red), EditorStyles.miniButton)) _debugMask = 1;
+						// Assist mode
+						_debug = ToggleBtn(
+							"Assist\nMode",
+							"Display vertex colours on model",
+							_debug
+						);
+						if (_debug){
+							if (!_wasDebug){
+								EnableDebug();
+							} else if (_updateDebugMat){
+								DisableDebug();
+								EnableDebug();
+							}
+						} else if (!_debug && _wasDebug) {
+							DisableDebug();
+						}
 
-						GUI.enabled = (_debugMask != 2);
-						if (DrawBtn("G", (GUI.enabled ? Color.white : Color.green), EditorStyles.miniButton)) _debugMask = 2;
+						// Face highlighting
+						_hl = ToggleBtn(
+							"Highlight\nFaces",
+							"Highlight hovered face (slow for large meshes!)",
+							_hl
+						);
+						EditorGUILayout.EndHorizontal();
 
-						GUI.enabled = (_debugMask != 3);
-						if (DrawBtn("B", (GUI.enabled ? Color.white : Color.blue), EditorStyles.miniButton)) _debugMask = 3;
-
-						GUI.enabled = (_debugMask != 4);
-						if (DrawBtn("A", (GUI.enabled ? Color.white : Color.black), Color.white, EditorStyles.miniButton)) _debugMask = 4;
-
-						// Override with write channels in LINK mode
-						if (_debugLink){
-							if (channels == 1){
-								if (writeR){
-									_debugMask = 1;
-								} else if (writeG){
-									_debugMask = 2;
-								} else if (writeB){
-									_debugMask = 3;
-								} else if (writeA){
-									_debugMask = 4;
-								}
-							} else {
-								_debugMask = 0;
+						// Draw Plugins
+						for (int i=0; i<_plugins.Count; ++i){
+							_currentPlugin = _plugins[i];
+							_currentPluginTitleStyle = null;
+							if (_pluginsActive[i]){
+								EditorGUILayout.BeginHorizontal();
+								_currentPlugin.OnModesToolbar(this, fpd);
+								EditorGUILayout.EndHorizontal();
 							}
 						}
-						GUI.enabled = true;
 
-						EditorGUILayout.EndHorizontal();
+						// Assist mode options
+						if (_debug) {
+							EditorGUILayout.BeginHorizontal();
+							GUILayout.Label("Assist Channels:", EditorStyles.miniLabel);
+							GUI.enabled = !_debugLink;
+							_debugLink = ToggleBtn("LINK", "Link assist mode channel(s) to paint channel(s)", _debugLink);
+							GUI.enabled = (_debugMask != 0);
+							if (DrawBtn("RGB", (GUI.enabled ? Color.white : Color.grey), EditorStyles.miniButton)) _debugMask = 0;
+
+							GUI.enabled = (_debugMask != 1);
+							if (DrawBtn("R", (GUI.enabled ? Color.white : Color.red), EditorStyles.miniButton)) _debugMask = 1;
+
+							GUI.enabled = (_debugMask != 2);
+							if (DrawBtn("G", (GUI.enabled ? Color.white : Color.green), EditorStyles.miniButton)) _debugMask = 2;
+
+							GUI.enabled = (_debugMask != 3);
+							if (DrawBtn("B", (GUI.enabled ? Color.white : Color.blue), EditorStyles.miniButton)) _debugMask = 3;
+
+							GUI.enabled = (_debugMask != 4);
+							if (DrawBtn("A", (GUI.enabled ? Color.white : Color.black), Color.white, EditorStyles.miniButton)) _debugMask = 4;
+
+							// Override with write channels in LINK mode
+							if (_debugLink){
+								if (channels == 1){
+									if (writeR){
+										_debugMask = 1;
+									} else if (writeG){
+										_debugMask = 2;
+									} else if (writeB){
+										_debugMask = 3;
+									} else if (writeA){
+										_debugMask = 4;
+									}
+								} else {
+									_debugMask = 0;
+								}
+							}
+							GUI.enabled = true;
+
+							EditorGUILayout.EndHorizontal();
+						}
+						_wasDebug = _debug;
 					}
-					_wasDebug = _debug;
+					EditorGUILayout.EndVertical();
 					#endregion
 
 					#region PLUGINS PANEL
 					if (_plugins.Count > 0){
-						EditorGUILayout.Space();
 						EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-						EditorGUILayout.BeginHorizontal();
-						_showPlugins = EditorGUILayout.Foldout(_showPlugins, "PLUGINS");
+						EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+						_settings.showPlugins = EditorGUILayout.Foldout(_settings.showPlugins, "Plugins");
 						GUILayout.FlexibleSpace();
 						GUILayout.Label(string.Format(
 							"[Active: {0} / {1}]",
@@ -820,7 +868,7 @@ namespace Sigtrap.FacePaint {
 							_plugins.Count
 						));
 						EditorGUILayout.EndHorizontal();
-						if (_showPlugins){
+						if (_settings.showPlugins){
 							++EditorGUI.indentLevel;
 							for (int i=0; i<_plugins.Count; ++i){
 								IFacePaintPlugin fpp = _plugins[i];
@@ -841,9 +889,12 @@ namespace Sigtrap.FacePaint {
 
 			#region SETTINGS PANEL
 			EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-			_showSettings = EditorGUILayout.Foldout(_showSettings, "SETTINGS");
-			if (_showSettings){
+			EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+			_settings.showSettings = EditorGUILayout.Foldout(_settings.showSettings, "Settings");
+			EditorGUILayout.EndHorizontal();
+			if (_settings.showSettings){
 				++EditorGUI.indentLevel;
+				_settings.hideLogo = EditorGUILayout.Toggle("Hide Header", _settings.hideLogo);
 				GUIContent dctt = new GUIContent("Default Color", "When edited the very first time, meshes are filled with this color");
 				_defaultColor = EditorGUILayout.ColorField(dctt, _defaultColor);
 

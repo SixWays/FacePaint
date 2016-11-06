@@ -4,6 +4,7 @@ using System.Collections.Generic;
 
 namespace Sigtrap.FacePaint {
 	public class FacePaintSettings : ScriptableObject {
+		#region Colors
 		[HideInInspector]
 		public Color paintColor = Color.black;
 		[HideInInspector]
@@ -12,17 +13,34 @@ namespace Sigtrap.FacePaint {
 		public List<Color> palette = new List<Color>{
 			Color.black, Color.white
 		};
-		[HideInInspector]
-		public Texture2D lut;
-		[HideInInspector]
-		public bool useLut = false;
+		#endregion
+
+		#region Highlighting
 		[HideInInspector]
 		public Color hlCol = Color.green;
 		[HideInInspector]
 		public int hlThick = 5;
 		[HideInInspector]
 		public bool hl = true;
+		#endregion
 
+		#region Panel folding
+		[HideInInspector]
+		public bool showPalette = true;
+		[HideInInspector]
+		public bool showChannels = true;
+		[HideInInspector]
+		public bool showModes = true;
+		[HideInInspector]
+		public bool showPlugins = false;
+		[HideInInspector]
+		public bool showSettings = false;
+		#endregion
+
+		[HideInInspector]
+		public bool hideLogo = false;
+
+		#region Plugins
 		[SerializeField][HideInInspector]
 		private List<string> _activePlugins = new List<string>();
 		[SerializeField][HideInInspector]
@@ -56,5 +74,6 @@ namespace Sigtrap.FacePaint {
 		public void SetPluginSettingsUnfolded(IFacePaintPlugin plugin, bool unfold){
 			SetPluginInList(_unfoldedPluginSettings, plugin, unfold);
 		}
+		#endregion
 	}
 }
