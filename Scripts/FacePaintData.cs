@@ -246,7 +246,11 @@ namespace Sigtrap.FacePaint {
 			}
 			#endif
 		}
+		#if UNITY_EDITOR
+		public void Setup(){
+		#else
 		void Setup(){
+		#endif
 			InitMesh();
 			Apply();
 		}

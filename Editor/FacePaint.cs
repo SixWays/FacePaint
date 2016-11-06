@@ -312,6 +312,7 @@ namespace Sigtrap.FacePaint {
 				_debugMat.SetInt("_Mask", __debugMask);
 			}
 		}
+		bool _debugLink = false;
 		#endregion
 
 		#region UI settings
@@ -766,6 +767,8 @@ namespace Sigtrap.FacePaint {
 					if (_debug) {
 						EditorGUILayout.BeginHorizontal();
 						GUILayout.Label("Assist Channels:", EditorStyles.miniLabel);
+						GUI.enabled = !_debugLink;
+						_debugLink = ToggleBtn("LINK", "Link assist mode channel(s) to paint channel(s)", _debugLink);
 						GUI.enabled = (_debugMask != 0);
 						if (DrawBtn("RGB", (GUI.enabled ? Color.white : Color.grey), EditorStyles.miniButton)) _debugMask = 0;
 
@@ -781,6 +784,22 @@ namespace Sigtrap.FacePaint {
 						GUI.enabled = (_debugMask != 4);
 						if (DrawBtn("A", (GUI.enabled ? Color.white : Color.black), Color.white, EditorStyles.miniButton)) _debugMask = 4;
 
+						// Override with write channels in LINK mode
+						if (_debugLink){
+							if (channels == 1){
+								if (writeR){
+									_debugMask = 1;
+								} else if (writeG){
+									_debugMask = 2;
+								} else if (writeB){
+									_debugMask = 3;
+								} else if (writeA){
+									_debugMask = 4;
+								}
+							} else {
+								_debugMask = 0;
+							}
+						}
 						GUI.enabled = true;
 
 						EditorGUILayout.EndHorizontal();

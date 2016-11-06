@@ -16,6 +16,10 @@ Copy/paste component to another MeshRenderer using the exact same mesh to apply 
 		
 		public override void OnInspectorGUI() {
 			EditorGUILayout.HelpBox(info, MessageType.Info);
+			if (GUILayout.Button("Force Re-apply Colors")){
+				FacePaintData fpd = (FacePaintData)target; 
+				fpd.Setup();
+			}
 		}
 	}
 }
