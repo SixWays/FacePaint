@@ -1,3 +1,5 @@
+![FacePaint](http://www.sigtrapgames.com/wp-content/uploads/2016/11/header-logo.png)
+
 # FacePaint
 Simple per-poly vertex painter for Unity. *Written/tested on Unity 5.4.0b21. 5.3+ should be ok.*
 
