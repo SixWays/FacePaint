@@ -40,7 +40,6 @@ namespace Sigtrap.FacePaint {
 				return __colors;
 			}
 			set {
-				Debug.Log("SET COLOURS");
 				__colors = _m.colors = value;
 			}
 		}

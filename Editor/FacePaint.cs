@@ -17,19 +17,31 @@ namespace Sigtrap.FacePaint {
 			FacePaint window = (FacePaint)EditorWindow.GetWindow(typeof(FacePaint));
 			window.Show();
 		}
+		#endregion
 
-		private const string RESOURCES_PATH = "Assets/FacePaint/Resources/";
-		private const string SETTINGS_PATH = "FacePaintSettings.asset";
-		private static FacePaintSettings __settings;
-		private static FacePaintSettings _settings {
+		#region Settings data
+		private const string ASSETS_PATH = "Assets/FacePaint/Resources/";
+		private const string RESOURCES_PATH = "Settings/";
+
+		private T LoadSettings<T>() where T:ScriptableObject {
+			string name = typeof(T).Name;
+			// Check if file exists
+			T file = Resources.Load<T>(RESOURCES_PATH + name);
+			if (file == null){
+				// In not, create file
+				file = ScriptableObject.CreateInstance<T>();
+				AssetDatabase.CreateAsset(file, ASSETS_PATH + name + ".asset");
+				AssetDatabase.SaveAssets();
+				AssetDatabase.Refresh();
+			}
+			return file;
+		}
+
+		private FacePaintSettings __settings;
+		private FacePaintSettings _settings {
 			get {
 				if (__settings == null){
-					__settings = Resources.Load<FacePaintSettings>(SETTINGS_PATH);
-					if (__settings == null){
-						__settings = ScriptableObject.CreateInstance<FacePaintSettings>();
-						AssetDatabase.CreateAsset(__settings, RESOURCES_PATH + SETTINGS_PATH);
-						AssetDatabase.Refresh();
-					}
+					__settings = LoadSettings<FacePaintSettings>();
 				}
 				return __settings;
 			}
@@ -43,8 +55,8 @@ namespace Sigtrap.FacePaint {
 		/// </summary>
 		/// <value>The color of the paint.</value>
 		public Color paintColor {
-			get {return _c;}
-			set {_c = value;}
+			get {return _settings.paintColor;}
+			set {_settings.paintColor = value;}
 		}
 		/// <summary>
 		/// Is painting to RED channel enabled?
@@ -156,14 +168,25 @@ namespace Sigtrap.FacePaint {
 		#endregion
 
 		#region Data storage
-		public T GetCustomSettings<T>() where T:FacePaintCustomSettings, new() {
-			return _settings.GetCustomData<T>();
+		private Dictionary<IFacePaintPlugin, FacePaintCustomSettings> _customSettings = new Dictionary<IFacePaintPlugin, FacePaintCustomSettings>();
+		public T GetCustomSettings<T>(IFacePaintPlugin plugin) where T:FacePaintCustomSettings {
+			if (!_customSettings.ContainsKey(plugin)){			// Check if cached
+				T cs = LoadSettings<T>();						// Load or create
+				_customSettings.Add(plugin, cs);				// Cache
+				return cs;
+			}
+			return (T)_customSettings[plugin];
 		}
 		public void SaveSettings(){
 			for (int i=0; i<_plugins.Count; ++i){
-				_settings.SetPluginActive(_plugins[i].GetType(), _pluginsActive[i]);
+				_settings.SetPluginActive(_plugins[i], _pluginsActive[i]);
+			}
+			foreach (var a in _customSettings){
+				EditorUtility.SetDirty(a.Value);
 			}
 			EditorUtility.SetDirty(_settings);
+			AssetDatabase.SaveAssets();
+			AssetDatabase.Refresh();
 		}
 		#endregion
 
@@ -204,8 +227,10 @@ namespace Sigtrap.FacePaint {
 
 		#region Color settings
 		private bool _paintIsland = false;
-		private Color _defaultColor;
-		private Color _c;
+		private Color _defaultColor {
+			get {return _settings.defaultColor;}
+			set {_settings.defaultColor = value;}
+		}
 
 		bool[] _mask = new bool[]{ true, true, true, true };
 		bool _mR { get { return _mask[0]; } set { _mask[0] = value; } }
@@ -229,19 +254,21 @@ namespace Sigtrap.FacePaint {
 		public float activeChannel {
 			get {
 				if (_channels == 1) {
-					if (_mR) return _c.r;
-					if (_mG) return _c.g;
-					if (_mB) return _c.b;
-					if (_mA) return _c.a;
+					if (_mR) return paintColor.r;
+					if (_mG) return paintColor.g;
+					if (_mB) return paintColor.b;
+					if (_mA) return paintColor.a;
 				}
 				return -1;
 			}
 			set {
 				if (_channels == 1) {
-					if (_mR) _c.r = value;
-					if (_mG) _c.g = value;
-					if (_mB) _c.b = value;
-					if (_mA) _c.a = value;
+					Color p = paintColor;
+					if (_mR) p.r = value;
+					if (_mG) p.g = value;
+					if (_mB) p.b = value;
+					if (_mA) p.a = value;
+					paintColor = p;
 				}
 			}
 		}
@@ -337,8 +364,9 @@ namespace Sigtrap.FacePaint {
 			foreach (var a in System.AppDomain.CurrentDomain.GetAssemblies()){
 				foreach (var t in a.GetTypes()){
 					if (t.IsPublic && !t.IsAbstract && !t.IsInterface && t.GetInterfaces().Contains(iPlugin)){
-						_plugins.Add((IFacePaintPlugin)System.Activator.CreateInstance(t));
-						_pluginsActive.Add(_settings.PluginIsActive(t));
+						IFacePaintPlugin plugin = (IFacePaintPlugin)System.Activator.CreateInstance(t);
+						_plugins.Add(plugin);
+						_pluginsActive.Add(_settings.PluginIsActive(plugin));
 					}
 				}
 			}
@@ -389,6 +417,8 @@ namespace Sigtrap.FacePaint {
 			}
 			_go = null;
 			_mf = null;
+
+			SaveSettings();
 		}
 
 		void EnableDebug(){
@@ -446,8 +476,6 @@ namespace Sigtrap.FacePaint {
 			CheckSelection();
 			_scroll = EditorGUILayout.BeginScrollView(_scroll);
 
-			EditorGUI.BeginChangeCheck();
-
 			if (Selection.activeGameObject == null) {
 				EditorGUILayout.HelpBox("No Object Selected",MessageType.Info);
 			} else {
@@ -483,6 +511,8 @@ namespace Sigtrap.FacePaint {
 					}
 					EditorGUILayout.Space();
 				} else if (_editing) {
+					Undo.RecordObject(_settings, "FacePaintSettings");
+					EditorGUI.BeginChangeCheck();
 					#region Header
 					if (Selection.activeGameObject != _mf.gameObject) {
 						EditorGUILayout.HelpBox("Editing: "
@@ -534,14 +564,14 @@ namespace Sigtrap.FacePaint {
 							);
 							EditorGUILayout.EndHorizontal();
 						} else {
-							_c = EditorGUILayout.ColorField(_c, GUILayout.Width(60));
+							paintColor = EditorGUILayout.ColorField(paintColor, GUILayout.Width(60));
 						}
 						EditorGUILayout.EndVertical();
 						GUILayout.Space(5);
 						if (GUILayout.Button(new GUIContent(_bucketIcon, "Flood Mesh"))) {
 							Color[] cols = fpd.GetColors();
 							for (int i = 0; i < _mf.sharedMesh.vertexCount; ++i) {
-								cols[i] = Paint(cols[i], _c);
+								cols[i] = Paint(cols[i], paintColor);
 							}
 							fpd.SetColors(cols);
 						}
@@ -575,7 +605,7 @@ namespace Sigtrap.FacePaint {
 					GUILayout.Label("Palette");
 					GUILayout.FlexibleSpace();
 					if (DrawBtn("+", _greenBtn, GUILayout.Height(15), GUILayout.Width(20))){
-						_settings.palette.Add(_c);
+						_settings.palette.Add(paintColor);
 					}
 					EditorGUILayout.EndHorizontal();
 
@@ -587,7 +617,7 @@ namespace Sigtrap.FacePaint {
 						_settings.palette[i] = EditorGUILayout.ColorField(c, GUILayout.Width(33));
 						EditorGUILayout.BeginHorizontal();
 						if (DrawBtn("", _greenBtn, GUILayout.Width(15), GUILayout.Height(15))){
-							_c = c;
+							paintColor = c;
 						}
 						if (DrawBtn("X", _redBtn, GUILayout.Width(17), GUILayout.Height(15))){
 							cToRemove = i;
@@ -766,6 +796,7 @@ namespace Sigtrap.FacePaint {
 			}
 
 			#region Persistent settings
+			EditorGUI.BeginChangeCheck();
 			EditorGUILayout.BeginVertical(EditorStyles.helpBox);
 			_showSettings = EditorGUILayout.Foldout(_showSettings, "SETTINGS");
 			if (_showSettings){
@@ -780,15 +811,20 @@ namespace Sigtrap.FacePaint {
 				--EditorGUI.indentLevel;
 
 				// Draw Plugins
+				var es = new GUIStyle(EditorStyles.helpBox);
+				es.margin = new RectOffset(30,0,0,0);
 				for (int i=0; i<_plugins.Count; ++i){
 					_currentPlugin = _plugins[i];
 					_currentPluginTitleStyle = null;
-					if (_pluginsActive[i]){
+					_settings.SetPluginSettingsUnfolded(_currentPlugin, EditorGUILayout.Foldout(_settings.PluginSettingsUnfolded(_currentPlugin),_currentPlugin.title.ToUpper()));
+					if (_settings.PluginSettingsUnfolded(_currentPlugin)){
+						--EditorGUI.indentLevel;
+						EditorGUILayout.BeginVertical(es);
 						_currentPlugin.OnSettingsPanel(this);
+						EditorGUILayout.EndVertical();
+						++EditorGUI.indentLevel;
 					}
 				}
-
-				--EditorGUI.indentLevel;
 			}
 			EditorGUILayout.EndVertical();
 			#endregion
@@ -880,7 +916,7 @@ namespace Sigtrap.FacePaint {
 							for (int i = 0; i < allTris.Count; ++i){
 								for (int j = 0; j < 3; ++j) {
 									int cInt = tris[(allTris[i]*3) + j];
-									cols[cInt] = Paint(cols[cInt], _c);
+									cols[cInt] = Paint(cols[cInt], paintColor);
 								}
 							}
 							fpd.SetColors(cols);

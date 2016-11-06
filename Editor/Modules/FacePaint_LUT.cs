@@ -5,7 +5,7 @@ using System.Collections.ObjectModel;
 
 namespace Sigtrap.FacePaint {
 	public class FacePaint_LUT : FacePaintPluginBase {
-		private Color GetLut(Texture2D tex, float channel){
+		private Color Lookup(Texture2D tex, float channel){
 			return tex.GetPixel(
 				Mathf.Min(
 					Mathf.FloorToInt(tex.width * channel), 
@@ -17,8 +17,23 @@ namespace Sigtrap.FacePaint {
 		private const string ASSIST_SHADER = "Hidden/FacePaintLutDebug";
 		public override string title {get {return "LUT";}}
 		public override string description {get {return "Applies a 1D LUT to assist mode. Forces use of a single channel.";}}
+		public override void OnColorToolbar(FacePaint fp, FacePaintData fpData) {
+			FacePaint_LUT_Settings data = fp.GetCustomSettings<FacePaint_LUT_Settings>(this);
+			if (!data.useLut) return;
+			if (data.lutIsReadable){
+				fp.DrawPluginTitle();
+				GUILayout.Label("Result ", EditorStyles.miniLabel);
+				EditorGUI.DrawRect(
+					EditorGUILayout.GetControlRect(GUILayout.Width(45)),
+					Lookup(data.lut, fp.activeChannel)
+				);
+				GUILayout.FlexibleSpace();
+			} else {
+				EditorGUILayout.LabelField("!! LUT not readable in import settings", EditorStyles.miniLabel);
+			}
+		}
 		public override void OnPaletteToolbar(FacePaint fp, FacePaintData fpData, ReadOnlyCollection<Color> palette) {
-			FacePaint_LUT_Settings data = fp.GetCustomSettings<FacePaint_LUT_Settings>();
+			FacePaint_LUT_Settings data = fp.GetCustomSettings<FacePaint_LUT_Settings>(this);
 			if (!data.useLut || !data.lutIsReadable) return;
 			for (int i=0; i<palette.Count; ++i){
 				Color c = palette[i];
@@ -34,28 +49,13 @@ namespace Sigtrap.FacePaint {
 				}
 				EditorGUI.DrawRect(
 					EditorGUILayout.GetControlRect(GUILayout.Width(44)),
-					GetLut(data.lut, channel)
+					Lookup(data.lut, channel)
 				);
 				GUILayout.Space(5);
 			}
 		}
-		public override void OnColorToolbar(FacePaint fp, FacePaintData fpData) {
-			FacePaint_LUT_Settings data = fp.GetCustomSettings<FacePaint_LUT_Settings>();
-			if (!data.useLut) return;
-			if (data.lutIsReadable){
-				fp.DrawPluginTitle();
-				GUILayout.Label("Result ", EditorStyles.miniLabel);
-				EditorGUI.DrawRect(
-					EditorGUILayout.GetControlRect(GUILayout.Width(45)),
-					GetLut(data.lut, fp.activeChannel)
-				);
-				GUILayout.FlexibleSpace();
-			} else {
-				EditorGUILayout.LabelField("!! LUT not readable in import settings", EditorStyles.miniLabel);
-			}
-		}
 		public override void OnChannelToolbar(FacePaint fp, FacePaintData fpData) {
-			FacePaint_LUT_Settings data = fp.GetCustomSettings<FacePaint_LUT_Settings>();
+			FacePaint_LUT_Settings data = fp.GetCustomSettings<FacePaint_LUT_Settings>(this);
 			if (!data.useLut) return;
 
 			fp.DrawPluginTitle();
@@ -86,7 +86,7 @@ namespace Sigtrap.FacePaint {
 		}
 		public override void OnModesToolbar (FacePaint fp, FacePaintData fpData){
 			fp.DrawPluginTitle();
-			FacePaint_LUT_Settings data = fp.GetCustomSettings<FacePaint_LUT_Settings>();
+			FacePaint_LUT_Settings data = fp.GetCustomSettings<FacePaint_LUT_Settings>(this);
 			if (data.lut == null){
 				GUILayout.Label("No LUT selected", EditorStyles.miniLabel);
 				return;
@@ -111,27 +111,8 @@ namespace Sigtrap.FacePaint {
 			}
 		}
 		public override void OnSettingsPanel (FacePaint fp){
-			fp.DrawPluginTitle();
-			++EditorGUI.indentLevel;
-			FacePaint_LUT_Settings data = fp.GetCustomSettings<FacePaint_LUT_Settings>();
+			FacePaint_LUT_Settings data = fp.GetCustomSettings<FacePaint_LUT_Settings>(this);
 			data.lut = EditorGUILayout.ObjectField("Texture", data.lut, typeof(Texture2D), false) as Texture2D;
-			--EditorGUI.indentLevel;
 		}
-	}
-
-	public class FacePaint_LUT_Settings : FacePaintCustomSettings {
-		public Texture2D lut;
-		[SerializeField]
-		private bool _useLut;
-		public bool useLut {
-			get {return _useLut && (lut != null);}
-			set {_useLut = value;}
-		}
-		public bool lutIsReadable {
-			get {
-				return ((TextureImporter)(AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(lut)))).isReadable;
-			}
-		}
-		public int channel = 0;
 	}
 }

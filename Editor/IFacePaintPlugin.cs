@@ -18,13 +18,6 @@ namespace Sigtrap.FacePaint {
 		void OnSettingsPanel(FacePaint fp);
 		void OnSceneGUI(FacePaint fp, FacePaintData fpData, FacePaintSceneGUIData data);
 	}
-	/// <summary>
-	/// Face paint custom data. Inherit to store data in FacePaintSettings.
-	/// </summary>
-	[System.Serializable]
-	public class FacePaintCustomSettings {
-		public FacePaintCustomSettings(){}
-	}
 	public class FacePaintSceneGUIData {
 		public enum SceneGUIEvent {
 			NONE,
@@ -54,7 +47,9 @@ namespace Sigtrap.FacePaint {
 		public virtual void OnChannelToolbar (FacePaint fp, FacePaintData fpData){}
 		public virtual void OnModesToolbar (FacePaint fp, FacePaintData fpData){}
 		public virtual void OnPluginPanel (FacePaint fp, FacePaintData fpData){}
-		public virtual void OnSettingsPanel (FacePaint fp){}
+		public virtual void OnSettingsPanel (FacePaint fp){
+			UnityEditor.EditorGUILayout.LabelField("No settings", UnityEditor.EditorStyles.miniBoldLabel);
+		}
 		public virtual void OnSceneGUI (FacePaint fp, FacePaintData fpData, FacePaintSceneGUIData data){}
 	}
 }
