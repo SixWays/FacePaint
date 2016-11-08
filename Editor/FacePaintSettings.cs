@@ -20,8 +20,6 @@ namespace Sigtrap.FacePaint {
 		public Color hlCol = Color.green;
 		[HideInInspector]
 		public int hlThick = 5;
-		[HideInInspector]
-		public bool hl = true;
 		#endregion
 
 		#region Panel folding

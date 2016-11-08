@@ -324,10 +324,6 @@ namespace Sigtrap.FacePaint {
 			get {return _settings.hlThick;}
 			set {_settings.hlThick = value;}
 		}
-		bool _hl {
-			get {return _settings.hl;}
-			set {_settings.hl = value;}
-		}
 
 		Color _greenBtn = new Color(0.7f, 1f, 0.7f);
 		Color _redBtn = new Color(1f, 0.7f, 0.7f);
@@ -374,17 +370,6 @@ namespace Sigtrap.FacePaint {
 			}
 		}
 		bool _anyPluginsActive {get {return _numPluginsActive > 0;}}
-		bool _anyPluginsHoverTris {
-			get {
-				if (!_anyPluginsActive) return false;
-				for (int i=0; i<_plugins.Count; ++i){
-					if (_plugins[i].forceTriangleHover){
-						return true;
-					}
-				}
-				return false;
-			}
-		}
 		#endregion
 		#endregion
 
@@ -790,13 +775,6 @@ namespace Sigtrap.FacePaint {
 						} else if (!_debug && _wasDebug) {
 							DisableDebug();
 						}
-
-						// Face highlighting
-						_hl = ToggleBtn(
-							"Highlight\nFaces",
-							"Highlight hovered face (slow for large meshes!)",
-							_hl
-						);
 						EditorGUILayout.EndHorizontal();
 
 						// Draw Plugins
@@ -944,7 +922,6 @@ namespace Sigtrap.FacePaint {
 					Debug.LogWarning("FacePaint: No MeshRenderer found on " + _mf.name);
 					return;
 				}
-
 				// Check renderer bounds for cheap initial raycast
 				if (mr.bounds.IntersectRay(mRay)) {
 					bool clicked = e.button == 0 && (e.type == EventType.MouseDrag || e.type == EventType.MouseDown);
@@ -971,8 +948,6 @@ namespace Sigtrap.FacePaint {
 					#endregion
 
 					_mouseWasDown = clicked;
-					bool hoverTris = _anyPluginsHoverTris;
-					if (!_hl && !clicked && !hoverTris) return;
 
 					// Grab meshcollider or create temporary one
 					bool newCollider = false;
@@ -1028,7 +1003,7 @@ namespace Sigtrap.FacePaint {
 								}
 							}
 							#endregion
-						} else if (hoverTris) {
+						} else {
 							// If not clicked/dragging, pass triangle hover event to plugins
 							FacePaintSceneGUIData data = new FacePaintSceneGUIData(
 								FacePaintSceneGUIData.SceneGUIEvent.HOVER_TRIS,
@@ -1041,20 +1016,20 @@ namespace Sigtrap.FacePaint {
 								}
 							}
 						}
-						if (_hl) {
-							// Highlight hovered triangle
-							Matrix4x4 hm = Handles.matrix;
-							Handles.matrix = _mf.transform.localToWorldMatrix;
-							Vector3[] verts = m.vertices;
-							Color hc = Handles.color;
-							Handles.color = _hlCol;
-							Handles.DrawAAPolyLine(
-								_hlThick, 
-								verts[tris[i0]], verts[tris[i0 + 1]],
-								verts[tris[i0 + 2]], verts[tris[i0]]);
-							Handles.matrix = hm;
-							Handles.color = hc;
-						}
+
+						// Highlight hovered triangle
+						Matrix4x4 hm = Handles.matrix;
+						Handles.matrix = _mf.transform.localToWorldMatrix;
+						Vector3[] verts = m.vertices;
+						Color hc = Handles.color;
+						Handles.color = _hlCol;
+						Handles.DrawAAPolyLine(
+							_hlThick, 
+							verts[tris[i0]], verts[tris[i0 + 1]],
+							verts[tris[i0 + 2]], verts[tris[i0]]);
+						Handles.matrix = hm;
+						Handles.color = hc;
+						HandleUtility.Repaint();
 					} else {
 						#region Plugin hook
 						if (_anyPluginsActive){

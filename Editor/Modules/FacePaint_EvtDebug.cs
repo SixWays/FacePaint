@@ -11,7 +11,6 @@ namespace Sigtrap.FacePaint {
 		#region IFacePaintPlugin implementation
 		public override string title {get {return "Event Debugger";}}
 		public override string description {get {return "Tool to show developers how face paint events work.";}}
-		public override bool forceTriangleHover {get {return true;}}
 
 		public override void OnPluginPanel (FacePaint fp, FacePaintData fpData){
 			_collapse = EditorGUILayout.Toggle("Collapse Output", _collapse);
