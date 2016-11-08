@@ -7,6 +7,8 @@ FacePaint paints triangles rather than individual vertices. This is mainly suite
 
 Editing is non-destructive; FacePaint stores its data in a _FacePaintData_ component (automatically added to edited objects). This data is applied at runtime. Your mesh files aren't altered, and each instance of a mesh can have its own vertex colours.
 
+![FacePaint UI](http://www.sigtrapgames.com/wp-content/uploads/2016/11/facepaint.png)
+
 ## Installation and Use
 Copy the FacePaint folder into the Assets folder of your project. **Window > FacePaint** will launch a dockable editor window. Select an object with a MeshRenderer and MeshFilter and press Edit in the FacePaint window.
 
