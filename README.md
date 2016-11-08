@@ -5,13 +5,13 @@ Simple per-poly vertex painter for Unity. *Written/tested on Unity 5.4.0b21. 5.3
 
 FacePaint paints triangles rather than individual vertices. This is mainly suited for materials and meshes using a low-poly / flat shaded / faceted look. *Note that this may have strange effects for meshes with smoothing groups!*
 
-Editing is non-destructive; FacePaint stores its data in a FacePaintData component (automatically added to edited objects). This data is applied at runtime. Your mesh files aren't altered, and each instance of a mesh can have its own vertex colours.
+Editing is non-destructive; FacePaint stores its data in a _FacePaintData_ component (automatically added to edited objects). This data is applied at runtime. Your mesh files aren't altered, and each instance of a mesh can have its own vertex colours.
 
 ## Installation and Use
-Copy the FacePaint folder into the Assets folder of your project. Window > FacePaint will launch a dockable editor window. Select an object with a MeshRenderer and MeshFilter and press Edit in the FacePaint window.
+Copy the FacePaint folder into the Assets folder of your project. **Window > FacePaint** will launch a dockable editor window. Select an object with a MeshRenderer and MeshFilter and press Edit in the FacePaint window.
 
 ## Extensibility
-FacePaint is designed to be __minimal__ and __extensible__, not feature-complete. One person's super-specialised tool is another's bloated mess!
+FacePaint is designed to be ***minimal*** and ***extensible***, not feature-complete. One person's super-specialised tool is another's bloated mess!
 
 FacePaint features a plugin system to easily extend the tool without having to modify core code - quick guide below. A few are included both as examples and as potentially helpful tools. In general, I'll add new features as plugins to avoid bloat, unless they should absolutely be core functionality.
 
@@ -20,11 +20,11 @@ FacePaint features a plugin system to easily extend the tool without having to m
 * _If your mesh isn't totally flat shaded (i.e. each triangle must have completely unique vertices) you may see colours 'bleed' across triangles. I'll add a custom mesh import script soon._
 
 ## Tips
-* To give multiple mesh instances the same colours, simply copy and paste the FacePaintData component. Press the "Force Re-apply Vertex Colours" button if nothing happens.
-* To reset vertex colours entirely, _make sure you're out of edit mode_ and then delete the FacePaintData component.
+* _To give multiple mesh instances the same colours, simply copy and paste the FacePaintData component. Press the "Force Re-apply Vertex Colours" button if nothing happens._
+* _To reset vertex colours entirely, ***make sure you're out of edit mode*** and then delete the FacePaintData component._
 
 ## Additional credits
-This tool is inspired by the excellent [Unity 5.0 Vertex Painter](https://github.com/slipster216/VertexPaint "GitHub Page") by Jason Booth (particularly the use of MeshRenderer.additionalVertexStreams to apply colours non-destructively).
+This tool is inspired by the excellent [Unity 5.0 Vertex Painter](https://github.com/slipster216/VertexPaint "GitHub Page") by Jason Booth (particularly the use of _MeshRenderer.additionalVertexStreams_ to apply colours non-destructively).
 
 Paint bucket icon by [Yusuke Kamiyamane](http://p.yusukekamiyamane.com/)
 
