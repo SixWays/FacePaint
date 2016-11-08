@@ -10,13 +10,18 @@ Editing is non-destructive; FacePaint stores its data in a FacePaintData compone
 ## Installation and Use
 Copy the FacePaint folder into the Assets folder of your project. Window > FacePaint will launch a dockable editor window. Select an object with a MeshRenderer and MeshFilter and press Edit in the FacePaint window.
 
-## Aims
-FacePaint is intended to be as simple as possible. Hopefully this allows you to extend and repurpose it easily for your own use-case. FacePaint now features a plugin system to easily extend the tool without having to modify existing code - quick guide below. A few are included both as examples and as potentially helpful tools. In general, I'll add new features as plugins unless they should absolutely be core functionality to avoid bloat.
+## Extensibility
+FacePaint is designed to be __minimal__ and __extensible__, not feature-complete. One person's super-specialised tool is another's bloated mess!
+
+FacePaint features a plugin system to easily extend the tool without having to modify core code - quick guide below. A few are included both as examples and as potentially helpful tools. In general, I'll add new features as plugins to avoid bloat, unless they should absolutely be core functionality.
+
+## Issues
+* _May interfere with unity-generated lightmapping UVs. This should be fixed soon._
+* _If your mesh isn't totally flat shaded (i.e. each triangle must have completely unique vertices) you may see colours 'bleed' across triangles. I'll add a custom mesh import script soon._
 
 ## Tips
-To give multiple mesh instances the same colours, simply copy and paste the FacePaintData component.
-
-To reset vertex colours entirely, make sure you're out of edit mode and then delete the FacePaintData component.
+* To give multiple mesh instances the same colours, simply copy and paste the FacePaintData component. Press the "Force Re-apply Vertex Colours" button if nothing happens.
+* To reset vertex colours entirely, _make sure you're out of edit mode_ and then delete the FacePaintData component.
 
 ## Additional credits
 This tool is inspired by the excellent [Unity 5.0 Vertex Painter](https://github.com/slipster216/VertexPaint "GitHub Page") by Jason Booth (particularly the use of MeshRenderer.additionalVertexStreams to apply colours non-destructively).
@@ -31,7 +36,9 @@ Plugins (when set active in the 'Plugins' panel of FacePaint) get callbacks at v
 
 Most callbacks pass the FacePaint instance itself for access to the API, and the FacePaintData component currently being edited (this is the MonoBehaviour attached to a mesh which stores and applies vertex colours).
 
-The _OnSceneGUI_ callback passes data on what kind of mouse event has occurred, which triangle on the mesh is affected if any, and the verts which comprise that triangle. This data can be used to manually paint on the mesh, for example. Currently it's not possible to 'eat' the event and prevent the default FacePaint behaviour from happening.
+The _OnPluginPanel_ callback should be used to implement any general UI that's not appropriate for any of the existing panels.
+
+The _OnSceneGUI_ callback passes data on what kind of mouse event has occurred, which triangle on the mesh is affected if any, and the verts which comprise that triangle. This data can be used to manually paint on the mesh, for example. _Currently it's not possible to 'eat' the event and prevent the default FacePaint behaviour from happening_.
 
 ## API
 If in doubt, Intellisense!
