@@ -251,23 +251,24 @@ namespace Sigtrap.FacePaint {
 
 		#region Internal Fields
 		#region Settings data
-		private const string SYSTEM_PATH = "FacePaint/Resources/";
-		private const string ASSETS_PATH = "Assets/";
-		private const string RESOURCES_PATH = "Settings/";
+		private static string ROOT_FOLDER = "FacePaint" + Path.DirectorySeparatorChar;
+		private readonly string RESOURCES_PATH = "Resources" + Path.DirectorySeparatorChar;
+		private readonly string ASSETS_PATH = "Assets" + Path.DirectorySeparatorChar;
+		private readonly string SETTINGS_PATH = "Settings" + Path.DirectorySeparatorChar;
 
 		private T LoadSettings<T>() where T:ScriptableObject {
 			string name = typeof(T).Name;
 			// Check if file exists
-			T file = Resources.Load<T>(RESOURCES_PATH + name);
+			T file = Resources.Load<T>(SETTINGS_PATH + name);
 			if (file == null){
 				// In not, create file
 				file = ScriptableObject.CreateInstance<T>();
-				string systemPath = Application.dataPath + "/" + SYSTEM_PATH + RESOURCES_PATH;
+				string systemPath = Application.dataPath + Path.DirectorySeparatorChar + ROOT_FOLDER + RESOURCES_PATH + SETTINGS_PATH;
 				Debug.Log(systemPath);
 				if (!Directory.Exists(systemPath)){
 					Directory.CreateDirectory(systemPath);
 				}
-				AssetDatabase.CreateAsset(file, ASSETS_PATH + SYSTEM_PATH + RESOURCES_PATH + name + ".asset");
+				AssetDatabase.CreateAsset(file, ASSETS_PATH + ROOT_FOLDER + RESOURCES_PATH + SETTINGS_PATH + name + ".asset");
 				AssetDatabase.SaveAssets();
 				AssetDatabase.Refresh();
 			}
@@ -390,6 +391,41 @@ namespace Sigtrap.FacePaint {
 			_bucketIcon = Resources.Load("paint-can-icon") as Texture;
 			_headerLogo = Resources.Load("header-logo") as Texture;
 			titleContent = new GUIContent("FacePaint");
+
+			// Find folder FacePaint is installed in
+			string newRoot = null;
+			bool success = true;
+			try {
+				// Find absolute path of FacePaint root from a known resource
+				FileInfo fi = new FileInfo(AssetDatabase.GetAssetPath(_headerLogo));
+				string localPath = fi.Directory.Parent.FullName;
+
+				// Find absolute path of project directory
+				DirectoryInfo root = new DirectoryInfo(Application.dataPath);
+				string rootPath = root.FullName;
+
+				// Legalise
+				if (!rootPath.EndsWith(Path.DirectorySeparatorChar.ToString())){
+					rootPath += Path.DirectorySeparatorChar;
+				}
+
+				// Subtract project directory from resource to get relative path
+				newRoot = localPath.Replace(rootPath,"");
+
+				// Legalise
+				if (!newRoot.EndsWith(Path.DirectorySeparatorChar.ToString())){
+					newRoot += Path.DirectorySeparatorChar;
+				}
+			} catch {
+				success = false;
+			}
+			if (success && !string.IsNullOrEmpty(newRoot)){
+				if (newRoot != ROOT_FOLDER){
+					ROOT_FOLDER = newRoot;
+				}
+			} else {
+				Debug.LogError("FacePaint root folder not found. Have you changed the internal folder structure?");
+			}
 
 			// Get plugins
 			_plugins.Clear();
