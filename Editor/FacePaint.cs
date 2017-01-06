@@ -1,6 +1,7 @@
 ﻿using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using System.IO;
 using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
@@ -250,7 +251,8 @@ namespace Sigtrap.FacePaint {
 
 		#region Internal Fields
 		#region Settings data
-		private const string ASSETS_PATH = "Assets/FacePaint/Resources/";
+		private const string SYSTEM_PATH = "FacePaint/Resources/";
+		private const string ASSETS_PATH = "Assets/";
 		private const string RESOURCES_PATH = "Settings/";
 
 		private T LoadSettings<T>() where T:ScriptableObject {
@@ -260,7 +262,12 @@ namespace Sigtrap.FacePaint {
 			if (file == null){
 				// In not, create file
 				file = ScriptableObject.CreateInstance<T>();
-				AssetDatabase.CreateAsset(file, ASSETS_PATH + name + ".asset");
+				string systemPath = Application.dataPath + "/" + SYSTEM_PATH + RESOURCES_PATH;
+				Debug.Log(systemPath);
+				if (!Directory.Exists(systemPath)){
+					Directory.CreateDirectory(systemPath);
+				}
+				AssetDatabase.CreateAsset(file, ASSETS_PATH + SYSTEM_PATH + RESOURCES_PATH + name + ".asset");
 				AssetDatabase.SaveAssets();
 				AssetDatabase.Refresh();
 			}
